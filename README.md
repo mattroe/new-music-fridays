@@ -22,6 +22,15 @@ This repo is symlinked into the Claude Code scheduled-tasks directory:
 
 Edits here are picked up by the next scheduled run.
 
+## Layout
+
+- `SKILL.md` — orchestrator prompt; reads the configs and template below
+- `config/delivery.yaml` — sender, recipient, subject format
+- `config/lastfm.yaml` — Last.fm query periods, limits, similar-artist fan-out
+- `config/genres.txt` — listening-profile genres (one per line)
+- `config/sources.txt` — editorial sources to consult (one per line)
+- `templates/email.html` — HTML email scaffold with `{{placeholders}}`
+
 ## Development
 
-Currently the entire routine lives in `SKILL.md`. Future phases will split it into modular prompts, extract config and templates, and add dry-run / fixture-based dev affordances. See conversation history for the planned phases.
+Edit configs or template directly; the orchestrator picks them up on the next run. Future phases will split the prompt into staged sub-prompts and add dry-run / fixture-based dev affordances. See `PLAN.md` for the planned phases.

@@ -1,0 +1,15 @@
+top_artists:
+  - period: 3month
+    limit: 50
+  - period: 12month
+    limit: 50
+  - period: overall
+    limit: 100
+
+recommendations:
+  limit: 50
+
+similar_artists:
+  # fan out the top N of the 3month and overall charts
+  top_n: 20
+  limit: 50

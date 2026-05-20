@@ -1,0 +1,3 @@
+from: claude@emails.mroe.net   # plain email string; resend `from` rejects "Name <email>" wrappers
+to: mroe@hey.com
+subject_template: "New Music Friday - {date}"   # {date} → MM-DD-YYYY
