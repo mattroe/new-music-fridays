@@ -13,6 +13,12 @@ Today is Friday. Produce my "New Music Friday" summary covering new music releas
 - `templates/email.html` — HTML email scaffold with placeholders
 - `templates/email.txt` — plain-text email scaffold with the same placeholders
 
+## Set up run state
+
+Determine today's date in `YYYY-MM-DD` format — call this `<today>`. Create the directory `runs/<today>/` (relative to the repo root) if it doesn't already exist; this is where per-run artifacts go.
+
+Check for dry-run mode: dry-run is **on** if either the `NMF_DRY_RUN` environment variable is set to any non-empty value, or a file named `.dry-run` exists at the repo root. Otherwise dry-run is **off**. This gates the final Resend send step.
+
 ## Data gathering (call in parallel)
 
 - `mcp__Last-fm__lastfm_auth_status` — confirm auth
@@ -20,9 +26,13 @@ Today is Friday. Produce my "New Music Friday" summary covering new music releas
 - `mcp__Last-fm__get_music_recommendations` with `limit` from `lastfm.yaml::recommendations.limit` (seeds discovery picks alongside listening history)
 - For the top `lastfm.yaml::similar_artists.top_n` artists from the 3-month chart and overall chart, also call `mcp__Last-fm__get_similar_artists` with `limit` from `lastfm.yaml::similar_artists.limit` to widen the discovery pool
 
+> **Log:** write the raw Last.fm responses (top-artist charts × 3 periods, recommendations, similar-artist fan-out) to `runs/<today>/listening-profile.json` as a single JSON document keyed by call name.
+
 ## New release research
 
 Search the web for albums released in the past 7 days across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases. Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
+
+> **Log:** write `runs/<today>/candidates.md` listing the release candidates you considered. For each: artist, album title, release date, source where you found it, and a one-line note on whether it was kept (and for which section) or skipped (and why). Include both kept and skipped candidates — the value is in the rejection reasoning.
 
 ## Compose four content blocks
 
@@ -38,6 +48,8 @@ These fill placeholders in both `templates/email.html` and `templates/email.txt`
 
 Also substitute `{{date}}` with today's date formatted as MM-DD-YYYY.
 
+> **Log:** write the fully-templated bodies to `runs/<today>/email.html` and `runs/<today>/email.txt`. These should match exactly what you'd pass as `html` and `text` to the Resend connector.
+
 ## Validate before sending
 
 Before calling the resend connector, verify each of:
@@ -51,10 +63,22 @@ If any check fails, abort and report the mismatch rather than sending.
 
 ## Send
 
-Send via the `resend` connector:
+If dry-run mode is **on**, skip the Resend call entirely.
+
+Otherwise, send via the `resend` connector:
 
 - `to`: from `delivery.yaml::to`
 - `from`: from `delivery.yaml::from` — pass as a plain email string with no display-name wrapper (the `from` field does not accept "Name <email>" format)
 - `subject`: the rendered subject from `subject_template`
 - `html`: the fully-filled `templates/email.html`
 - `text`: the fully-filled `templates/email.txt` (the resend connector requires this when `html` is provided)
+
+## Finalize run log
+
+Either way (sent or skipped), write `runs/<today>/meta.json` with:
+
+- `timestamp` — ISO 8601 UTC of when the run finished
+- `dry_run` — `true` or `false`
+- `validation_passed` — `true` or `false`
+- `sent` — `true` if Resend was called and succeeded, `false` otherwise
+- `resend_message_id` — the message ID returned by Resend, or `null` if not sent
