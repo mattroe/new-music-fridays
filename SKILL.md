@@ -26,6 +26,8 @@ Set the per-run artifact directory `<run_dir>`:
 
 Create `<run_dir>` (relative to the repo root) if it doesn't already exist. The dry-run flag also gates the final Resend send step.
 
+Record the current UTC timestamp (ISO 8601, e.g. via `date -u +"%Y-%m-%dT%H:%M:%SZ"`) as `<started_at>` — used in the finalize step to compute total run duration.
+
 ## Data gathering (call in parallel)
 
 Use the Last.fm MCP tools (the server may be registered under a friendly name like `Last-fm` or a UUID-prefixed identifier — match the tool by its function name suffix):
@@ -86,10 +88,51 @@ Otherwise, send via the `resend` connector:
 
 ## Finalize run log
 
-Either way (sent or skipped), write `<run_dir>/meta.json` with:
+Either way (sent or skipped), write `<run_dir>/meta.json` capturing cost-tracking metrics alongside the existing run status.
 
-- `timestamp` — ISO 8601 UTC of when the run finished
-- `dry_run` — `true` or `false`
-- `validation_passed` — `true` or `false`
-- `sent` — `true` if Resend was called and succeeded, `false` otherwise
-- `resend_message_id` — the message ID returned by Resend, or `null` if not sent
+First, capture `<finished_at>` as the current UTC timestamp (ISO 8601), and compute `<duration_seconds>` = `<finished_at>` − `<started_at>`.
+
+Then run `scripts/sum-tokens.sh` (from the repo root) to capture real API token usage from this session's JSONL. Parse its JSON output for the `tokens` field below. If the script returns an `error` object (no JSONL found), set `tokens` to `null` and add a note explaining why.
+
+Count tool calls deterministically:
+
+- `lastfm.auth` = 1
+- `lastfm.top_artists` = number of entries in `lastfm.yaml::top_artists`
+- `lastfm.recommendations` = 1
+- `lastfm.similar_artists` = number of unique top-`top_n` artists actually fanned out (`top_n` × 2 charts, minus chart overlap)
+- `lastfm.total` = sum of the above
+- `web_searches` = count of WebSearch calls made during the New release research phase
+
+Write `<run_dir>/meta.json`:
+
+```json
+{
+  "started_at": "<started_at>",
+  "finished_at": "<finished_at>",
+  "duration_seconds": <integer>,
+  "dry_run": <bool>,
+  "validation_passed": <bool>,
+  "sent": <bool>,
+  "resend_message_id": "<string or null>",
+  "tool_calls": {
+    "lastfm": {
+      "auth": <int>,
+      "top_artists": <int>,
+      "recommendations": <int>,
+      "similar_artists": <int>,
+      "total": <int>
+    },
+    "web_searches": <int>
+  },
+  "tokens": {
+    "input": <int>,
+    "output": <int>,
+    "cache_read": <int>,
+    "cache_create": <int>,
+    "total": <int>
+  },
+  "notes": []
+}
+```
+
+The `tokens` numbers are parsed from `scripts/sum-tokens.sh`; they exclude tokens spent on the meta.json write itself and any messages after the scrape (the JSONL is appended to as the session progresses).
