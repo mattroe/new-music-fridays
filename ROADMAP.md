@@ -35,6 +35,10 @@ Best done **after** a few runs of `candidates.md` and `email.html`/`txt` exist �
 - Refine the "fit to taste" rubric (what does "tightness of fit" mean concretely?)
 - Use `candidates.md` from real runs to identify rejection patterns worth encoding
 
+## Phase 6 — model selection optimization (deferred)
+
+`SKILL.md` currently pins `model: opus` and `effort: max`. Revisit after 4–8 weeks of `meta.json` cost data accumulates: compare Opus + max against Sonnet and Haiku on curation quality vs per-run cost. The decision becomes evidence-driven once real numbers exist.
+
 ## Explicitly NOT planned
 
 - **Multi-stage prompt split** (separate `prompts/01-…`, `prompts/02-…`). `SKILL.md` is short enough; splitting adds files for unclear gain.

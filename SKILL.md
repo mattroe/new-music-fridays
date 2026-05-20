@@ -1,6 +1,8 @@
 ---
 name: new-music-fridays
 description: Provide me a new music summary weekly based on my listening history
+model: opus
+effort: max
 ---
 
 This routine produces my "New Music Friday" summary covering new music released in the last calendar week (the past 7 days). The release window is the past 7 days regardless of which day the run is triggered — Fridays for the scheduled run, any day for manual triggers or dry-runs.

@@ -32,6 +32,19 @@ Edits here are picked up by the next scheduled run.
 - `templates/email.html` — HTML email scaffold with `{{placeholders}}`
 - `templates/email.txt` — plain-text email scaffold with the same `{{placeholders}}`
 
+## Customizing for your setup
+
+If you're forking this for your own weekly digest, the things to change are:
+
+- **`config/delivery.yaml`** — set `from` to a verified sender on your Resend domain and `to` to your own address. Adjust `subject_template` if you want a different subject line.
+- **`config/lastfm.yaml`** — tune the Last.fm query periods, limits, and similar-artist fan-out. The Last.fm username itself is read from the Last.fm MCP server's auth, not this file.
+- **`config/sources.txt`** — replace the editorial sources with whatever publications, blogs, or label sites match your taste. One URL per line.
+- **`templates/email.html`** and **`templates/email.txt`** — adjust the email scaffold and copy. Keep the `{{placeholders}}` aligned across both files.
+- **`SKILL.md` frontmatter** — `model: opus` and `effort: max` are the defaults. Override for cost or latency:
+  - `model: sonnet` (or `haiku`) for cheaper, faster runs at the cost of curation depth
+  - `effort: high` (or `medium`, `low`) to cap reasoning tokens. See the [Claude Code skills docs](https://code.claude.com/docs/en/skills) for the full list per model.
+- **MCP servers** — this routine relies on the Last.fm and Resend MCP connectors being configured in your Claude Code setup. Without those, the run will fail at the data-fetch or send step.
+
 ## Development
 
 Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions and `ROADMAP.md` for what's next.
