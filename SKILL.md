@@ -9,9 +9,9 @@ Today is Friday. Produce my "New Music Friday" summary covering new music releas
 
 - `config/delivery.yaml` — sender, recipient, subject template
 - `config/lastfm.yaml` — Last.fm query parameters
-- `config/genres.txt` — genres in my listening profile (one per line)
 - `config/sources.txt` — editorial sources to consult (one per line)
 - `templates/email.html` — HTML email scaffold with placeholders
+- `templates/email.txt` — plain-text email scaffold with the same placeholders
 
 ## Data gathering (call in parallel)
 
@@ -22,11 +22,11 @@ Today is Friday. Produce my "New Music Friday" summary covering new music releas
 
 ## New release research
 
-Search the web for albums released in the past 7 days across the genres in `config/genres.txt`. Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases. Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
+Search the web for albums released in the past 7 days across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases. Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
 
 ## Compose four content blocks
 
-These fill placeholders in `templates/email.html`:
+These fill placeholders in both `templates/email.html` and `templates/email.txt`. The same content goes into each, formatted appropriately: HTML markup (links as `<a>`) for the HTML template, plain text (links as raw URLs) for the text template.
 
 - `{{top_5}}` — **Top 5 Picks of the Week**. Lead with this. Five releases across both known and discovery artists, sorted by tightness of fit to my tastes. One sentence each on why.
 
@@ -45,6 +45,7 @@ Before calling the resend connector, verify each of:
 - The `from` argument you will pass exactly equals `delivery.yaml::from`
 - The `to` argument exactly equals `delivery.yaml::to`
 - The `subject` argument exactly equals `delivery.yaml::subject_template` with `{date}` replaced by today's date in MM-DD-YYYY format
+- The `html` and `text` arguments are both non-empty and contain no unfilled `{{placeholder}}` strings
 
 If any check fails, abort and report the mismatch rather than sending.
 
@@ -56,3 +57,4 @@ Send via the `resend` connector:
 - `from`: from `delivery.yaml::from` — pass as a plain email string with no display-name wrapper (the `from` field does not accept "Name <email>" format)
 - `subject`: the rendered subject from `subject_template`
 - `html`: the fully-filled `templates/email.html`
+- `text`: the fully-filled `templates/email.txt` (the resend connector requires this when `html` is provided)

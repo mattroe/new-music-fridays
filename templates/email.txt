@@ -1,0 +1,22 @@
+NEW MUSIC FRIDAY — {{date}}
+============================
+
+
+TOP 5 PICKS OF THE WEEK
+-----------------------
+{{top_5}}
+
+
+A) ARTISTS I'VE ALREADY LISTENED TO
+-----------------------------------
+{{section_a}}
+
+
+B) DISCOVERY PICKS
+------------------
+{{section_b}}
+
+
+SKIP / LOW PRIORITY
+-------------------
+{{skip_list}}
