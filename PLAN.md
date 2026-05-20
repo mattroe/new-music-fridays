@@ -1,82 +1,57 @@
-# Phase 2 plan
+# Roadmap
 
-This file briefs a fresh Claude Code session on the state of the `new-music-fridays` repo and what to work on next. Read this before doing anything.
+> **Convention:** this file is always a fresh, forward-looking roadmap. When a phase ships, rewrite this file to reflect what's next — don't leave it as a historical handoff or stack of completed phases. Past context lives in git history and PR descriptions.
 
-## Where we are (Phase 1 complete)
+The repo runs a working Friday digest via `SKILL.md`. This file tracks what's planned next and why.
 
-- Repo lives at `~/code/new-music-fridays`, pushed to `mattroe/new-music-fridays` (private) on GitHub
-- Symlinked into the scheduled-task runtime: `~/.claude/scheduled-tasks/new-music-fridays` → `~/code/new-music-fridays`
-- Manual trigger of the routine has been confirmed working through the symlink
-- Commits are SSH-signed (verified by GitHub)
-- `SKILL.md` is unchanged from the original scheduled-task version — it's still the monolithic prompt
+## Current state
 
-The routine itself works end-to-end (last run sent successfully from `digest@example.com` to `you@example.com`). Phase 2 is purely a refactor for maintainability — **do not change observable behavior**.
+- `SKILL.md` is a thin orchestrator reading config from `config/*` and templates from `templates/*`
+- Validation step catches `from`/`to`/`subject` mismatches before send
+- No audit trail of per-run state (next phase addresses this)
 
-## Phase 2 goals
+## Next up — cleanup pass
 
-Decompose the monolithic `SKILL.md` so that:
+Small follow-ups before Phase 3 begins:
 
-1. **Configuration is data, not prose.** The genres, editorial sources, email addresses, subject-line format, and Last.fm query parameters are all currently inlined in the prompt. They should live in editable config files so changing them doesn't require editing the prompt logic.
-2. **The email template is versioned separately.** The HTML email body should live as its own file so design iterations show up as clean diffs, not as buried prose edits in a prompt.
-3. **`SKILL.md` becomes a thin orchestrator** that references the config and template files by path.
+- Add `CLAUDE.md` with dev-side context (distinct from `SKILL.md`, which is the runtime prompt)
+- Trim `config/sources.txt` to 5 sources: Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, NPR
+- Delete `config/genres.txt` — genre signal is already in the listening profile (top artists + recs + similar). Update `SKILL.md` to drop the reference.
+- Add `templates/email.txt` — plain-text companion to `email.html` with the same `{{placeholders}}`. The Resend `send-email` connector requires `text` when `html` is provided; today it's generated inline at compose time, which pushes templating logic back into the prompt.
+- Update `SKILL.md` to fill both templates, pass `text:` alongside `html:`, and extend the pre-send validation to confirm `text` is non-empty.
 
-After Phase 2, behavior should be identical. The win is editability and review-ability.
+## Phase 3 — run logging + dry-run
 
-## Proposed structure
+Write per-run artifacts to `runs/<YYYY-MM-DD>/` so every run is inspectable after the fact:
 
-```
-new-music-fridays/
-├── SKILL.md                   # thin orchestrator; references files below
-├── config/
-│   ├── delivery.yaml          # from, to, subject_template
-│   ├── genres.txt             # genres in the listening profile (one per line)
-│   ├── sources.txt            # editorial sources to consult (one per line)
-│   └── lastfm.yaml            # query periods, limits, top-N for similar-artist fan-out
-├── templates/
-│   ├── email.html             # HTML email body with placeholders
-│   └── email.txt              # plain-text fallback with placeholders
-└── PLAN.md                    # this file
-```
+- `listening-profile.json` — Last.fm snapshot (top artists × 3 periods, recommendations, similar-artist fan-out)
+- `candidates.md` — release candidates considered, with kept/skipped notes
+- `email.html` / `email.txt` — final rendered bodies
+- `meta.json` — timestamp, dry-run flag, Resend message ID (if sent), validation status
 
-## What to extract from current SKILL.md
+**Dry-run:** set `NMF_DRY_RUN=1` (or drop a `.dry-run` file in the repo root) to write all artifacts but skip the Resend send step. Same code path; just gated.
 
-Read `SKILL.md` end-to-end before extracting. Specifically:
+**Why this first:** today there's no audit after a run; dry-run also falls out for free once logs are written before the send step.
 
-- **Last.fm calls** in lines ~10–15: the periods (`3month`, `12month`, `overall`), the limits (50/50/100), the recommendation limit (50), and the top-20 similar-artist fan-out → `config/lastfm.yaml`
-- **Genre list** in line ~18: "ECM/contemporary jazz, ambient, indie folk, experimental hip-hop, world/folk, modern composition, indie rock" → `config/genres.txt`
-- **Source list** in line ~18: "NPR Music New Music Friday, Bandcamp Daily Essential Releases, Pitchfork Best New Music, Paste Magazine, Stereogum, Resident Advisor, The Wire, Jazzwise, Presto Music jazz roundup, AllMusic, Qobuz..." → `config/sources.txt`
-- **Delivery details** in line ~30: from address (`digest@example.com`), to address (`you@example.com`), subject format (`New Music Friday - MM-DD-YYYY`), and the "plain email string, no display-name wrapper" constraint on the `from` field → `config/delivery.yaml`
-- **Email body structure** (Top 5 → Section A → Section B → Skip) — this is the template. Decide whether to put the HTML structure into `templates/email.html` as a literal HTML scaffold with `{{placeholders}}`, or to keep the structural instructions in `SKILL.md` and only template the styling. See "Decision points" below.
+`runs/` should be gitignored.
 
-## Decision points to raise with the user before extracting
+## Phase 4 — output-shape validation (deferred)
 
-1. **Config format**: YAML or JSON? YAML is friendlier to edit by hand; JSON is more rigid. Both work since Claude reads them. Recommend YAML for `delivery.yaml` and `lastfm.yaml`, plain text for the lists (`genres.txt`, `sources.txt`).
+Extend pre-send validation beyond `from`/`to`/`subject`:
 
-2. **Template approach**: Two options for the email body:
-   - **(a) Literal HTML file with `{{placeholders}}`** — the file contains the full styled HTML scaffold; Claude's job is to fill in the dynamic content (Top 5 list, Section A, Section B, Skip list). Cleanest separation; design iteration is purely visual.
-   - **(b) Structural prose in SKILL.md, styles only in template** — `templates/email.html` is just CSS + boilerplate `<head>`; SKILL.md still describes the section structure. More flexible if section structure changes often.
+- All four placeholders filled (no literal `{{…}}` left in body)
+- Section sizes reasonable (`top_5` has 5, `section_b` ≤ 5, etc.)
+- Required fields present per release (title, label, date, why-it-fits)
 
-   Recommend (a). Section structure has been stable across runs and is unlikely to change frequently.
+Defer until Phase 3 logs surface concrete failure modes worth catching.
 
-3. **Should the validation step (verify `from`/`to` match config before sending) be added in Phase 2 or wait for Phase 5?** It's a one-line addition to the prompt and would have caught the bug from the run dated 2026-05-19. Recommend doing it now since it's trivial.
+## Phase 5 — prompt-quality refinements (deferred)
 
-4. **Skip-list logic**: currently `SKILL.md` doesn't define what qualifies as a "major release worth skipping" vs. just an irrelevant release. This isn't a Phase 2 issue (it's about prompt quality, not structure), but flag it if it surfaces during extraction.
+- Tighten skip-list semantics ("major release worth skipping" vs. just irrelevant)
+- Refine the "fit to taste" rubric
+- Revisit after a few runs of logged candidates show real patterns
 
-## Out of scope for Phase 2 (don't drift into these)
+## Explicitly NOT planned
 
-- **Phase 3**: splitting the prompt into stages (`prompts/01-listening-profile.md`, `02-release-scan.md`, etc.) and writing intermediate state to `runs/<date>/`. Tempting to combine with Phase 2 but explicitly separated to keep the diff readable.
-- **Phase 4**: dry-run scripts and fixtures (`fixtures/sample-profile.json`)
-- **Phase 5**: validation, run logging, error handling improvements (except the trivial `from`/`to` check called out above)
-
-## How to start
-
-1. Open this repo (`cd ~/code/new-music-fridays`)
-2. Read `SKILL.md` end-to-end to see what's being extracted
-3. Confirm the four decision points above with the user
-4. Extract config and template, update `SKILL.md` to reference them
-5. Manually trigger the scheduled task to verify behavior is unchanged
-6. Commit with a descriptive message; push
-
-## Reference: full original task brief
-
-The original task brief (before any rewrites) is preserved in git history. The current `SKILL.md` includes one small post-Phase-1 edit: the last line was updated to specify the `from` address explicitly and warn against display-name wrappers. That edit fixed a real bug from the 2026-05-19 run.
+- **Multi-stage prompt split** (separate `prompts/01-…`, `prompts/02-…`). `SKILL.md` is short enough; splitting adds files for unclear gain.
+- **Synthetic fixtures.** Once Phase 3 logs exist, real run snapshots are better fixtures than hand-crafted ones.
