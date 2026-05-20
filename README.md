@@ -9,7 +9,7 @@ Claude (via the scheduled-task runtime) executes `SKILL.md` every Friday. The pr
 1. Pulls my Last.fm listening profile (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20)
 2. Searches the web across Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, and NPR Music — plus genre-specific blogs and label sites — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
-4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks, Skip list)
+4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks)
 5. Sends the email via the Resend MCP connector
 
 ## Wire-up

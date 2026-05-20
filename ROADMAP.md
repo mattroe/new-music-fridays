@@ -27,13 +27,11 @@ Extend pre-send validation beyond `from`/`to`/`subject`:
 
 - Section sizes reasonable (`top_5` has 5 items, `section_b` ≤ 5, etc.)
 - Required fields present per release (title, label, date, why-it-fits)
-- Skip-list isn't suspiciously short or long
 
 Best done **after** a few runs of `candidates.md` and `email.html`/`txt` exist — real outputs will show which failure modes actually occur. Designing this up front is guesswork.
 
 ## Phase 5 — prompt-quality refinements (deferred)
 
-- Tighten skip-list semantics ("major release worth skipping" vs. just irrelevant)
 - Refine the "fit to taste" rubric (what does "tightness of fit" mean concretely?)
 - Use `candidates.md` from real runs to identify rejection patterns worth encoding
 

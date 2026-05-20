@@ -34,7 +34,7 @@ Search the web for albums released in the past 7 days across the genres represen
 
 > **Log:** write `runs/<today>/candidates.md` listing the release candidates you considered. For each: artist, album title, release date, source where you found it, and a one-line note on whether it was kept (and for which section) or skipped (and why). Include both kept and skipped candidates — the value is in the rejection reasoning.
 
-## Compose four content blocks
+## Compose three content blocks
 
 These fill placeholders in both `templates/email.html` and `templates/email.txt`. The same content goes into each, formatted appropriately: HTML markup (links as `<a>`) for the HTML template, plain text (links as raw URLs) for the text template.
 
@@ -43,8 +43,6 @@ These fill placeholders in both `templates/email.html` and `templates/email.txt`
 - `{{section_a}}` — **Artists I've already listened to**. Artists appearing in any of my top-artist charts or loved tracks. For each: album title, label, release date, why it's relevant (which charts they appear on, play count if notable, producer/collaborator overlap with other artists I listen to). Sort by tightness of fit.
 
 - `{{section_b}}` — **Discovery picks**. Maximum 5. Artists NOT in my listening history, matched via: (i) `get_music_recommendations` output, (ii) similar-artist overlap with my top artists, or (iii) genre/label/collaborator overlap. For each: album title, label, release date, one-line "why this fits" tied to a specific artist or genre from my profile. Sort by tightness of fit.
-
-- `{{skip_list}}` — **Skip / low priority**. Brief list of major releases that week that don't fit my taste, so I know what I'm consciously passing on.
 
 Also substitute `{{date}}` with today's date formatted as MM-DD-YYYY.
 
