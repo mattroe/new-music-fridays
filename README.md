@@ -34,4 +34,4 @@ Edits here are picked up by the next scheduled run.
 
 ## Development
 
-Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions and `PLAN.md` for the current roadmap.
+Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions and `ROADMAP.md` for what's next.

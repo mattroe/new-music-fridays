@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Convention:** this file is always a fresh, forward-looking roadmap. When a phase ships, rewrite this file to reflect what's next — don't leave it as a historical handoff or stack of completed phases. Past context lives in git history and PR descriptions.
+> Forward-looking only. Rewrite on phase ship; past context lives in git history. See `CLAUDE.md`.
 
 The repo runs a working Friday digest via `SKILL.md`. This file tracks what's planned next and why.
 
