@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>New Music Friday — {{date}}</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px;
+    color: #1a1a1a;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  section {
+    margin-bottom: 24px;
+  }
+  a {
+    color: #0066cc;
+  }
+</style>
+</head>
+<body>
+  <h1>New Music Friday — {{date}}</h1>
+
+  <section>
+    <h2>Top 5 Picks of the Week</h2>
+    {{top_5}}
+  </section>
+
+  <section>
+    <h2>A) Artists I've already listened to</h2>
+    {{section_a}}
+  </section>
+
+  <section>
+    <h2>B) Discovery picks</h2>
+    {{section_b}}
+  </section>
+
+  <section>
+    <h2>Skip / low priority</h2>
+    {{skip_list}}
+  </section>
+</body>
+</html>
