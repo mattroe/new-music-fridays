@@ -3,7 +3,7 @@ name: new-music-fridays
 description: Provide me a new music summary weekly based on my listening history
 ---
 
-Today is Friday. Produce my "New Music Friday" summary covering new music released today or in the last calendar week (the past 7 days).
+This routine produces my "New Music Friday" summary covering new music released in the last calendar week (the past 7 days). The release window is the past 7 days regardless of which day the run is triggered — Fridays for the scheduled run, any day for manual triggers or dry-runs.
 
 ## Read configuration first
 
@@ -28,16 +28,22 @@ Create `<run_dir>` (relative to the repo root) if it doesn't already exist. The 
 
 ## Data gathering (call in parallel)
 
-- `mcp__Last-fm__lastfm_auth_status` — confirm auth
-- `mcp__Last-fm__get_top_artists` once per entry in `lastfm.yaml::top_artists`, using the `period` and `limit` from each entry
-- `mcp__Last-fm__get_music_recommendations` with `limit` from `lastfm.yaml::recommendations.limit` (seeds discovery picks alongside listening history)
-- For the top `lastfm.yaml::similar_artists.top_n` artists from the 3-month chart and overall chart, also call `mcp__Last-fm__get_similar_artists` with `limit` from `lastfm.yaml::similar_artists.limit` to widen the discovery pool
+Use the Last.fm MCP tools (the server may be registered under a friendly name like `Last-fm` or a UUID-prefixed identifier — match the tool by its function name suffix):
+
+- `lastfm_auth_status` — confirm auth
+- `get_top_artists` once per entry in `lastfm.yaml::top_artists`, using the `period` and `limit` from each entry
+- `get_music_recommendations` with `limit` from `lastfm.yaml::recommendations.limit` (seeds discovery picks alongside listening history)
+- For the top `lastfm.yaml::similar_artists.top_n` artists from the 3-month chart and overall chart, also call `get_similar_artists` with `limit` from `lastfm.yaml::similar_artists.limit` to widen the discovery pool
 
 > **Log:** write the raw Last.fm responses (top-artist charts × 3 periods, recommendations, similar-artist fan-out) to `<run_dir>/listening-profile.json` as a single JSON document keyed by call name.
 
 ## New release research
 
-Search the web for albums released in the past 7 days across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases. Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
+Search the web for albums released in the past 7 days across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases.
+
+When searching Pitchfork, scope to `site:pitchfork.com` (the whole site, not just `/best-new-music`) — general aggregator queries return poor results for editorial coverage.
+
+Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
 
 > **Log:** write `<run_dir>/candidates.md` listing the release candidates you considered. For each: artist, album title, release date, source where you found it, and a one-line note on whether it was kept (and for which section) or skipped (and why). Include both kept and skipped candidates — the value is in the rejection reasoning.
 
