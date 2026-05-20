@@ -7,51 +7,37 @@ The repo runs a working Friday digest via `SKILL.md`. This file tracks what's pl
 ## Current state
 
 - `SKILL.md` is a thin orchestrator reading config from `config/*` and templates from `templates/*`
-- Validation step catches `from`/`to`/`subject` mismatches before send
-- No audit trail of per-run state (next phase addresses this)
+- Pre-send validation catches `from`/`to`/`subject` mismatches and unfilled placeholders
+- Per-run artifacts (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) written to `runs/<YYYY-MM-DD>/` for audit
+- Dry-run mode available via `NMF_DRY_RUN=1` env var or `.dry-run` file at repo root
+- `CLAUDE.md` codifies dev-side conventions, distinct from the runtime `SKILL.md`
 
-## Next up — cleanup pass
+## Most important next: verify Phase 3 on a real run
 
-Small follow-ups before Phase 3 begins:
+The next scheduled Friday run (2026-05-22) will be the first to exercise the new run-logging and dry-run instructions. Before relying on dry-run for further development:
 
-- Add `CLAUDE.md` with dev-side context (distinct from `SKILL.md`, which is the runtime prompt)
-- Trim `config/sources.txt` to 5 sources: Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, NPR
-- Delete `config/genres.txt` — genre signal is already in the listening profile (top artists + recs + similar). Update `SKILL.md` to drop the reference.
-- Add `templates/email.txt` — plain-text companion to `email.html` with the same `{{placeholders}}`. The Resend `send-email` connector requires `text` when `html` is provided; today it's generated inline at compose time, which pushes templating logic back into the prompt.
-- Update `SKILL.md` to fill both templates, pass `text:` alongside `html:`, and extend the pre-send validation to confirm `text` is non-empty.
+1. **Live verification:** let the next scheduled run go through and inspect `runs/2026-05-22/` afterwards. Confirm all five artifacts are written and the email still arrives normally (`meta.json.sent == true`, `resend_message_id` present).
+2. **Manual dry-run smoke test:** before Friday, trigger the routine with `NMF_DRY_RUN=1` (or drop a `.dry-run` file at the repo root). Confirm all artifacts are written, no email is sent, and `meta.json.sent == false`.
 
-## Phase 3 — run logging + dry-run
+If anything is off — missing artifact, validation false negative, dry-run gate ignored — fix forward in `SKILL.md` before treating dry-run as a reliable dev affordance.
 
-Write per-run artifacts to `runs/<YYYY-MM-DD>/` so every run is inspectable after the fact:
-
-- `listening-profile.json` — Last.fm snapshot (top artists × 3 periods, recommendations, similar-artist fan-out)
-- `candidates.md` — release candidates considered, with kept/skipped notes
-- `email.html` / `email.txt` — final rendered bodies
-- `meta.json` — timestamp, dry-run flag, Resend message ID (if sent), validation status
-
-**Dry-run:** set `NMF_DRY_RUN=1` (or drop a `.dry-run` file in the repo root) to write all artifacts but skip the Resend send step. Same code path; just gated.
-
-**Why this first:** today there's no audit after a run; dry-run also falls out for free once logs are written before the send step.
-
-`runs/` should be gitignored.
-
-## Phase 4 — output-shape validation (deferred)
+## Phase 4 — output-shape validation (deferred until Phase 3 is verified)
 
 Extend pre-send validation beyond `from`/`to`/`subject`:
 
-- All four placeholders filled (no literal `{{…}}` left in body)
-- Section sizes reasonable (`top_5` has 5, `section_b` ≤ 5, etc.)
+- Section sizes reasonable (`top_5` has 5 items, `section_b` ≤ 5, etc.)
 - Required fields present per release (title, label, date, why-it-fits)
+- Skip-list isn't suspiciously short or long
 
-Defer until Phase 3 logs surface concrete failure modes worth catching.
+Best done **after** a few runs of `candidates.md` and `email.html`/`txt` exist — real outputs will show which failure modes actually occur. Designing this up front is guesswork.
 
 ## Phase 5 — prompt-quality refinements (deferred)
 
 - Tighten skip-list semantics ("major release worth skipping" vs. just irrelevant)
-- Refine the "fit to taste" rubric
-- Revisit after a few runs of logged candidates show real patterns
+- Refine the "fit to taste" rubric (what does "tightness of fit" mean concretely?)
+- Use `candidates.md` from real runs to identify rejection patterns worth encoding
 
 ## Explicitly NOT planned
 
 - **Multi-stage prompt split** (separate `prompts/01-…`, `prompts/02-…`). `SKILL.md` is short enough; splitting adds files for unclear gain.
-- **Synthetic fixtures.** Once Phase 3 logs exist, real run snapshots are better fixtures than hand-crafted ones.
+- **Synthetic fixtures.** Once Phase 3 logs exist, real run snapshots serve as fixtures naturally.
