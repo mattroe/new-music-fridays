@@ -15,9 +15,16 @@ Today is Friday. Produce my "New Music Friday" summary covering new music releas
 
 ## Set up run state
 
-Determine today's date in `YYYY-MM-DD` format — call this `<today>`. Create the directory `runs/<today>/` (relative to the repo root) if it doesn't already exist; this is where per-run artifacts go.
+Determine today's date in `YYYY-MM-DD` format — call this `<today>`.
 
-Check for dry-run mode: dry-run is **on** if either the `NMF_DRY_RUN` environment variable is set to any non-empty value, or a file named `.dry-run` exists at the repo root. Otherwise dry-run is **off**. This gates the final Resend send step.
+Check for dry-run mode: dry-run is **on** if either the `NMF_DRY_RUN` environment variable is set to any non-empty value, or a file named `.dry-run` exists at the repo root. Otherwise dry-run is **off**.
+
+Set the per-run artifact directory `<run_dir>`:
+
+- Dry-run **off** (real run): `<run_dir>` = `runs/<today>/` — committed to the repo as a historical archive
+- Dry-run **on**: `<run_dir>` = `runs/.dry/<today>/` — gitignored
+
+Create `<run_dir>` (relative to the repo root) if it doesn't already exist. The dry-run flag also gates the final Resend send step.
 
 ## Data gathering (call in parallel)
 
@@ -26,13 +33,13 @@ Check for dry-run mode: dry-run is **on** if either the `NMF_DRY_RUN` environmen
 - `mcp__Last-fm__get_music_recommendations` with `limit` from `lastfm.yaml::recommendations.limit` (seeds discovery picks alongside listening history)
 - For the top `lastfm.yaml::similar_artists.top_n` artists from the 3-month chart and overall chart, also call `mcp__Last-fm__get_similar_artists` with `limit` from `lastfm.yaml::similar_artists.limit` to widen the discovery pool
 
-> **Log:** write the raw Last.fm responses (top-artist charts × 3 periods, recommendations, similar-artist fan-out) to `runs/<today>/listening-profile.json` as a single JSON document keyed by call name.
+> **Log:** write the raw Last.fm responses (top-artist charts × 3 periods, recommendations, similar-artist fan-out) to `<run_dir>/listening-profile.json` as a single JSON document keyed by call name.
 
 ## New release research
 
 Search the web for albums released in the past 7 days across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases. Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
 
-> **Log:** write `runs/<today>/candidates.md` listing the release candidates you considered. For each: artist, album title, release date, source where you found it, and a one-line note on whether it was kept (and for which section) or skipped (and why). Include both kept and skipped candidates — the value is in the rejection reasoning.
+> **Log:** write `<run_dir>/candidates.md` listing the release candidates you considered. For each: artist, album title, release date, source where you found it, and a one-line note on whether it was kept (and for which section) or skipped (and why). Include both kept and skipped candidates — the value is in the rejection reasoning.
 
 ## Compose three content blocks
 
@@ -46,7 +53,7 @@ These fill placeholders in both `templates/email.html` and `templates/email.txt`
 
 Also substitute `{{date}}` with today's date formatted as MM-DD-YYYY.
 
-> **Log:** write the fully-templated bodies to `runs/<today>/email.html` and `runs/<today>/email.txt`. These should match exactly what you'd pass as `html` and `text` to the Resend connector.
+> **Log:** write the fully-templated bodies to `<run_dir>/email.html` and `<run_dir>/email.txt`. These should match exactly what you'd pass as `html` and `text` to the Resend connector.
 
 ## Validate before sending
 
@@ -73,7 +80,7 @@ Otherwise, send via the `resend` connector:
 
 ## Finalize run log
 
-Either way (sent or skipped), write `runs/<today>/meta.json` with:
+Either way (sent or skipped), write `<run_dir>/meta.json` with:
 
 - `timestamp` — ISO 8601 UTC of when the run finished
 - `dry_run` — `true` or `false`
