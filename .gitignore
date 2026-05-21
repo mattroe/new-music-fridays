@@ -1,5 +1,5 @@
 .DS_Store
-runs/.dry/
+runs/
 .dry-run
 out/
 *.log

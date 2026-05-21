@@ -23,8 +23,10 @@ Check for dry-run mode: dry-run is **on** if either the `NMF_DRY_RUN` environmen
 
 Set the per-run artifact directory `<run_dir>`:
 
-- Dry-run **off** (real run): `<run_dir>` = `runs/<today>/` — committed to the repo as a historical archive
-- Dry-run **on**: `<run_dir>` = `runs/.dry/<today>/` — gitignored
+- Dry-run **off** (real run): `<run_dir>` = `runs/<today>/`
+- Dry-run **on**: `<run_dir>` = `runs/.dry/<today>/`
+
+The whole `runs/` tree is gitignored — artifacts are local-only for both real and dry runs, since they can incidentally contain personal data (Last.fm history, recipient address, etc.). The dry/real split is preserved purely for local separation.
 
 Create `<run_dir>` (relative to the repo root) if it doesn't already exist. The dry-run flag also gates the final Resend send step.
 

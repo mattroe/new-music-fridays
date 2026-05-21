@@ -106,7 +106,7 @@ Or skip email entirely: leave dry-run on permanently and read `runs/<today>/emai
 - `config/sources.txt` — editorial sources to consult (one per line)
 - `templates/email.html` — HTML email scaffold with `{{placeholders}}`
 - `templates/email.txt` — plain-text email scaffold with the same `{{placeholders}}`
-- `runs/<YYYY-MM-DD>/` — per-run artifacts (committed) or `runs/.dry/<YYYY-MM-DD>/` (gitignored)
+- `runs/<YYYY-MM-DD>/` (real) or `runs/.dry/<YYYY-MM-DD>/` (dry) — per-run artifacts, both local-only (`runs/` is gitignored)
 
 ## Development
 

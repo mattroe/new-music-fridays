@@ -8,7 +8,7 @@ The repo runs a working Friday digest via `SKILL.md`. This file tracks what's pl
 
 - `SKILL.md` is a thin orchestrator reading config from `config/*` and templates from `templates/*`
 - Pre-send validation catches `from`/`to`/`subject` mismatches and unfilled placeholders
-- Per-run artifacts (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) written to `runs/<YYYY-MM-DD>/` for audit
+- Per-run artifacts (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) written to `runs/<YYYY-MM-DD>/` for local audit; the whole `runs/` tree is gitignored to keep listening history and recipient addresses out of the repo
 - Dry-run mode available via `NMF_DRY_RUN=1` env var or `.dry-run` file at repo root
 - `CLAUDE.md` codifies dev-side conventions, distinct from the runtime `SKILL.md`
 - Repo is forkable: `config/delivery.yaml` is gitignored with an `.example` template, and the README walks a new user through Last.fm MCP + Resend MCP + scheduling on their own machine
@@ -46,7 +46,6 @@ The initial fork-and-run path is in place, but it's untested by a second user. H
 
 - Smoother MCP onboarding if the Last.fm or Resend setup is the snag
 - A non-Resend delivery path baked into `SKILL.md` (currently described in README prose only) if multiple users want to skip Resend
-- A reset/cleanup helper for the inherited `runs/` history if it's noisy for new clones
 
 Resist designing this in advance — real friction is more informative than imagined friction.
 
