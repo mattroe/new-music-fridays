@@ -10,29 +10,41 @@ Claude (via the scheduled-task runtime) executes `SKILL.md` every Friday. The pr
 2. Searches the web across Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, and NPR Music — plus genre-specific blogs and label sites — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks)
-5. Sends the email via the Resend MCP connector. Test and fast runs still send (with a `[TEST]` or `[TEST][FAST]` subject prefix); the rendered email is also always written to disk under `runs/<today>/`.
+5. Sends the email via the Resend MCP connector and writes the rendered email + run metadata to `runs/<today>/`
 
 ## Use this yourself
 
-If you want your own weekly digest, you can fork this repo and run it on your own machine. Plan on about 20–30 minutes excluding DNS propagation.
+If you want your own weekly digest, you can fork this repo and run it on your own machine. Plan on about 5–10 minutes end to end.
 
 ### Prerequisites
 
-- Claude Code with scheduled tasks enabled
-- A Last.fm account
-- A way to receive the email. The default path uses [Resend](https://resend.com/) with a verified sending domain, but the routine is just "render two strings and hand them to a connector" — see [Other delivery options](#other-delivery-options) below if Resend isn't a fit.
+- Claude Code Desktop, v2.1.72 or later (`claude --version`). Desktop scheduled tasks require this version.
+- A Last.fm account.
+- A way to send the email. The default uses [Resend](https://resend.com/); either send from a verified custom domain (one-time DNS setup, can take a while) or from Resend's sandbox sender for testing. Any transactional-email MCP works in principle — see [Other delivery options](#other-delivery-options).
 
 ### Step 1: Add the Last.fm MCP
 
-Sign up at [lastfm-mcp.com](https://lastfm-mcp.com/) and follow their instructions to connect it to Claude Code as a remote MCP. Confirm it's wired up by invoking one of its tools manually from Claude Code once (e.g. `lastfm_auth_status`).
+Run this once from any terminal:
+
+```bash
+claude mcp add -s user --transport http lastfm https://lastfm-mcp.com/mcp
+```
+
+The `-s user` scope makes the MCP available to all your Claude Code sessions, including the Desktop app's scheduled tasks. Verify with `claude mcp list` from any directory — `lastfm` should appear (after the first OAuth completes).
+
+The first time a Last.fm tool is invoked from a Claude Code session, the server prompts you to authenticate against your Last.fm account in the browser. After that, every tool call uses the cached token. To force the OAuth flow now, ask Claude in any session to "run `lastfm_auth_status`".
 
 ### Step 2: Add the Resend MCP
 
-Skip this step if you're going to use [another delivery option](#other-delivery-options).
+Skip this section entirely if you're going to use [another delivery option](#other-delivery-options).
 
-1. Sign up at [resend.com](https://resend.com/) and create an API key.
-2. Verify a sending domain following Resend's [DNS walkthrough](https://resend.com/docs/dashboard/domains/introduction). You'll need to add a few DNS records and wait for propagation.
-3. Install Resend's MCP in Claude Code with your API key.
+1. Create an API key at [resend.com/api-keys](https://resend.com/api-keys) — you'll need it for the next step.
+2. Add the MCP under user scope, substituting your real API key:
+   ```bash
+   claude mcp add -s user resend -e RESEND_API_KEY=re_xxxxxxxxx -- npx -y resend-mcp
+   ```
+3. Verify with `claude mcp list` — `resend` should appear.
+4. **Optional — custom sending domain.** To send from your own domain (e.g. `digest@yourdomain.com`) instead of Resend's sandbox, verify a domain at [resend.com/domains](https://resend.com/domains). Follow Resend's DNS walkthrough, add the records, and wait for propagation. Skip this entirely if you're fine sending from Resend's default sandbox sender, or if `delivery.yaml::from` points at an address you've already verified.
 
 ### Step 3: Clone and configure
 
@@ -55,21 +67,36 @@ Optional tuning:
 
 ### Step 4: Wire into Claude Code's scheduled tasks
 
+Scheduled tasks in Claude Code Desktop have two pieces of state: the **prompt** (`SKILL.md`, on disk under `~/.claude/scheduled-tasks/<task-name>/`) and the **schedule + folder + permissions** (stored by the Desktop app itself, set through the Routines UI). You need both.
+
+**a. Symlink the repo into the scheduled-tasks directory** so the SKILL.md the task fires is the one you can edit in your repo (and pull updates into):
+
 ```bash
 ln -s "$(pwd)" ~/.claude/scheduled-tasks/new-music-fridays
 ```
 
-Then add a weekly schedule in Claude Code's scheduled-task UI — typically Friday morning in your timezone.
+**b. Create the Routines entry that points at it.** Open Claude Code Desktop → click **Routines** in the sidebar → **New routine** → choose **Local**. Fill in:
+
+- **Name**: `new-music-fridays` (must match the directory name above)
+- **Description**: anything, e.g. "Weekly new-music digest from Last.fm history"
+- **Instructions**: leave blank, or paste in the contents of `SKILL.md`. Either way, the file the task actually reads is `~/.claude/scheduled-tasks/new-music-fridays/SKILL.md` (the symlink), so what you type here doesn't matter once the symlink is in place.
+- **Folder**: select your cloned repo. Trust the folder when prompted.
+- **Schedule**: Weekly → Friday → pick a morning time in your local timezone (e.g. 9:00 AM).
+- Save.
+
+**c. Approve permissions on the first run.** Click **Run now** on the task once, watch for permission prompts (Last.fm tools, Resend send, Read), and tick **always allow** on each so future scheduled fires run unattended. Heads-up: **Run now** runs in production mode and will send a real email. If you'd rather not send a production email right now, skip this step and do the smoke test in Step 5 instead — Step 5's fast-mode email is clearly marked `[TEST][FAST]` in the subject.
 
 ### Step 5: Smoke test in fast mode
 
-Before going live, run the routine in fast mode to confirm the full pipeline works end-to-end (Last.fm MCP responds, template fills, Resend sends). Fast mode trims the slow parts — only one Last.fm call, no web research, stub candidates — and finishes in under two minutes.
+Confirm the full pipeline works end-to-end (Last.fm MCP responds, template fills, Resend sends) with the wrapper script:
 
 ```bash
 ./scripts/nmf --fast
 ```
 
-The email arrives in your inbox with subject `[TEST][FAST] New Music Friday - <date>` so it's obvious it's a test send. Artifacts land in `runs/<today>/` with a `fast-` filename prefix (`fast-email.html`, `fast-meta.json`, etc.).
+Fast mode trims the slow parts — only one Last.fm call, no web research, stub candidates — and finishes in under two minutes. The email arrives in your inbox with subject `[TEST][FAST] New Music Friday - <date>` so it's obvious it's a test send. Artifacts land in `runs/<today>/` with a `fast-` filename prefix (`fast-email.html`, `fast-meta.json`, etc.).
+
+> Note: the Routines UI's **Run now** button does **not** run in fast mode — it runs production and sends a real, unprefixed email. Use `./scripts/nmf --fast` for smoke tests.
 
 If you also want to exercise the full Last.fm fan-out and web research path (without committing to a production send), use `./scripts/nmf --test`. That takes the same 5–15 minutes as a real run, with `[TEST]` in the subject and `test-` filename prefix. Useful if you've changed the research logic.
 
@@ -77,9 +104,9 @@ The scheduled Friday run is its own path — fired by Claude Code's scheduled-ta
 
 ## Other delivery options
 
-The Resend integration is one option — you can swap in any transactional email service that has an MCP connector (Postmark, Mailgun, SendGrid, etc.) by adjusting the "Send" section of `SKILL.md` to call that connector's send tool instead. The rendered `html` and `text` bodies, the `from`, `to`, and `subject` come from the same `config/delivery.yaml`; only the tool name changes.
+The Resend integration is one option — swap in any transactional-email MCP (Postmark, Mailgun, SendGrid, etc.) by editing the "Send" section of `SKILL.md` to call that connector's send tool. The `html`, `text`, `from`, `to`, and `subject` all still come from `config/delivery.yaml` and `templates/`.
 
-If you don't want any email at all, you can read `runs/<today>/email.html` directly each Friday — the digest is rendered to disk regardless. Note that with this setup the scheduled run will still attempt to send (and likely fail at the Resend step), so disable the schedule or point `to` at a sink address.
+If you don't want any email at all, leave the schedule paused and read `runs/<today>/email.html` directly each Friday by triggering the routine manually with `./scripts/nmf --fast` or `--test`. The digest renders to disk every run.
 
 ## Customizing for your taste
 
@@ -94,8 +121,9 @@ If you don't want any email at all, you can read `runs/<today>/email.html` direc
 ## Troubleshooting
 
 - **Pre-send validation aborts with a `from`/`to`/`subject` mismatch.** Check `config/delivery.yaml` — the values must match exactly what the prompt is about to send. Inline YAML comments on the same line as a value can trip naive comparisons, so keep comments on their own lines.
-- **"Tool not found" errors during the run.** Confirm both MCPs are connected and listed in Claude Code's MCP inventory. The Last.fm server may register under a friendly name or a UUID prefix — `SKILL.md` matches by function-name suffix so either form works.
-- **Resend rejects the send.** Verify your sending domain's DNS has propagated (Resend's dashboard will tell you) and the `from` address matches a verified domain. Resend rejects "Name &lt;email&gt;" display-name wrappers in `from`; pass a plain address.
+- **"Tool not found" errors during the run.** Confirm both MCPs are connected and listed in `claude mcp list`. The Last.fm server may register under a friendly name or a UUID prefix — `SKILL.md` matches by function-name suffix so either form works.
+- **Resend rejects the send.** Verify your sending domain's DNS has propagated (Resend's dashboard will tell you) and the `from` address matches a verified domain or Resend's sandbox sender. Resend rejects "Name &lt;email&gt;" display-name wrappers in `from`; pass a plain address.
+- **Run now from the Routines UI sent a real production email.** That's expected — the UI runs in production mode regardless of any local env vars. Use `./scripts/nmf --fast` (or `--test`) for smoke tests; those set the env vars before invoking SKILL.md.
 - **`meta.json` shows `sent: false`.** Either pre-send validation failed (look for the abort message in the run log) or the Resend call itself errored. The artifacts in the run directory are still useful for debugging.
 
 ## Layout
@@ -105,10 +133,10 @@ If you don't want any email at all, you can read `runs/<today>/email.html` direc
 - `config/delivery.yaml.example` — template; copy to `config/delivery.yaml` and fill in
 - `config/lastfm.yaml` — Last.fm query periods, limits, similar-artist fan-out
 - `config/sources.txt` — editorial sources to consult (one per line)
-- `templates/email.html` — HTML email scaffold with `{{placeholders}}`
-- `templates/email.txt` — plain-text email scaffold with the same `{{placeholders}}`
+- `templates/email.html` and `templates/email.txt` — email scaffolds with `{{placeholders}}`
 - `scripts/nmf` — wrapper for manual test and fast runs (`./scripts/nmf --test` or `--fast`)
-- `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html` for production, `test-email.html` for test, `fast-email.html` for fast). All local-only (`runs/` is gitignored).
+- `scripts/sum-tokens.sh` — aggregates this session's API token usage from the JSONL; called by SKILL.md at finalize time
+- `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html`, `test-email.html`, `fast-email.html`). All local-only — `runs/` is gitignored.
 
 ## Development
 
