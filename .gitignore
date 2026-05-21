@@ -1,6 +1,5 @@
 .DS_Store
 runs/
-.dry-run
 out/
 *.log
 config/delivery.yaml

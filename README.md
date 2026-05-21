@@ -10,7 +10,7 @@ Claude (via the scheduled-task runtime) executes `SKILL.md` every Friday. The pr
 2. Searches the web across Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, and NPR Music — plus genre-specific blogs and label sites — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks)
-5. Sends the email via the Resend MCP connector (or, in dry-run, writes the rendered email to disk)
+5. Sends the email via the Resend MCP connector. Test and fast runs still send (with a `[TEST]` or `[TEST][FAST]` subject prefix); the rendered email is also always written to disk under `runs/<today>/`.
 
 ## Use this yourself
 
@@ -61,24 +61,25 @@ ln -s "$(pwd)" ~/.claude/scheduled-tasks/new-music-fridays
 
 Then add a weekly schedule in Claude Code's scheduled-task UI — typically Friday morning in your timezone.
 
-### Step 5: Smoke test in dry-run mode
+### Step 5: Smoke test in fast mode
 
-Before going live, trigger the routine in dry-run mode and inspect the output:
+Before going live, run the routine in fast mode to confirm the full pipeline works end-to-end (Last.fm MCP responds, template fills, Resend sends). Fast mode trims the slow parts — only one Last.fm call, no web research, stub candidates — and finishes in under two minutes.
 
 ```bash
-touch .dry-run
-# trigger the task manually from Claude Code's scheduled-task UI
-open runs/.dry/$(date +%Y-%m-%d)/email.html   # eyeball the rendered email
-rm .dry-run   # when you're ready to go live
+./scripts/nmf --fast
 ```
 
-The dry-run writes the same per-run artifacts as a real run (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) but skips the Resend call.
+The email arrives in your inbox with subject `[TEST][FAST] New Music Friday - <date>` so it's obvious it's a test send. Artifacts land in `runs/<today>/` with a `fast-` filename prefix (`fast-email.html`, `fast-meta.json`, etc.).
+
+If you also want to exercise the full Last.fm fan-out and web research path (without committing to a production send), use `./scripts/nmf --test`. That takes the same 5–15 minutes as a real run, with `[TEST]` in the subject and `test-` filename prefix. Useful if you've changed the research logic.
+
+The scheduled Friday run is its own path — fired by Claude Code's scheduled-task runtime with no env vars set, it always runs in production mode regardless of any local state. Leftover `./scripts/nmf` invocations can't disrupt it.
 
 ## Other delivery options
 
 The Resend integration is one option — you can swap in any transactional email service that has an MCP connector (Postmark, Mailgun, SendGrid, etc.) by adjusting the "Send" section of `SKILL.md` to call that connector's send tool instead. The rendered `html` and `text` bodies, the `from`, `to`, and `subject` come from the same `config/delivery.yaml`; only the tool name changes.
 
-Or skip email entirely: leave dry-run on permanently and read `runs/<today>/email.html` directly each Friday. The full digest is rendered to disk regardless of whether anything is sent.
+If you don't want any email at all, you can read `runs/<today>/email.html` directly each Friday — the digest is rendered to disk regardless. Note that with this setup the scheduled run will still attempt to send (and likely fail at the Resend step), so disable the schedule or point `to` at a sink address.
 
 ## Customizing for your taste
 
@@ -95,7 +96,7 @@ Or skip email entirely: leave dry-run on permanently and read `runs/<today>/emai
 - **Pre-send validation aborts with a `from`/`to`/`subject` mismatch.** Check `config/delivery.yaml` — the values must match exactly what the prompt is about to send. Inline YAML comments on the same line as a value can trip naive comparisons, so keep comments on their own lines.
 - **"Tool not found" errors during the run.** Confirm both MCPs are connected and listed in Claude Code's MCP inventory. The Last.fm server may register under a friendly name or a UUID prefix — `SKILL.md` matches by function-name suffix so either form works.
 - **Resend rejects the send.** Verify your sending domain's DNS has propagated (Resend's dashboard will tell you) and the `from` address matches a verified domain. Resend rejects "Name &lt;email&gt;" display-name wrappers in `from`; pass a plain address.
-- **`meta.json` shows `sent: false` on a non-dry-run.** Either pre-send validation failed (look for the abort message in the run log) or the Resend call itself errored. The artifacts in the run directory are still useful for debugging.
+- **`meta.json` shows `sent: false`.** Either pre-send validation failed (look for the abort message in the run log) or the Resend call itself errored. The artifacts in the run directory are still useful for debugging.
 
 ## Layout
 
@@ -106,7 +107,8 @@ Or skip email entirely: leave dry-run on permanently and read `runs/<today>/emai
 - `config/sources.txt` — editorial sources to consult (one per line)
 - `templates/email.html` — HTML email scaffold with `{{placeholders}}`
 - `templates/email.txt` — plain-text email scaffold with the same `{{placeholders}}`
-- `runs/<YYYY-MM-DD>/` (real) or `runs/.dry/<YYYY-MM-DD>/` (dry) — per-run artifacts, both local-only (`runs/` is gitignored)
+- `scripts/nmf` — wrapper for manual test and fast runs (`./scripts/nmf --test` or `--fast`)
+- `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html` for production, `test-email.html` for test, `fast-email.html` for fast). All local-only (`runs/` is gitignored).
 
 ## Development
 

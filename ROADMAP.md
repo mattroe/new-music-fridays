@@ -8,21 +8,22 @@ The repo runs a working Friday digest via `SKILL.md`. This file tracks what's pl
 
 - `SKILL.md` is a thin orchestrator reading config from `config/*` and templates from `templates/*`
 - Pre-send validation catches `from`/`to`/`subject` mismatches and unfilled placeholders
-- Per-run artifacts (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) written to `runs/<YYYY-MM-DD>/` for local audit; the whole `runs/` tree is gitignored to keep listening history and recipient addresses out of the repo
-- Dry-run mode available via `NMF_DRY_RUN=1` env var or `.dry-run` file at repo root
+- Per-run artifacts (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) written to `runs/<YYYY-MM-DD>/` for local audit; filename prefix indicates mode (`fast-`, `test-`, or unprefixed for production). The whole `runs/` tree is gitignored
+- Three run modes via env vars: production (scheduled fire, no flags), test (`NMF_TEST=1`, `[TEST]` subject prefix, full data path), fast (`NMF_FAST=1`, `[TEST][FAST]` prefix, trimmed Last.fm + stubbed candidates). All modes send via Resend; the prefix makes test sends obvious. The `scripts/nmf` wrapper exposes this as `--test` / `--fast` flags
+- Scheduled production runs are disruption-proof: they fire in a fresh process with no env vars, so manual test/fast invocations can never leak into Friday morning
 - `CLAUDE.md` codifies dev-side conventions, distinct from the runtime `SKILL.md`
 - Repo is forkable: `config/delivery.yaml` is gitignored with an `.example` template, and the README walks a new user through Last.fm MCP + Resend MCP + scheduling on their own machine
 
-## Most important next: verify Phase 3 on a real run
+## Most important next: verify on a real run
 
-The next scheduled Friday run (2026-05-22) will be the first to exercise the new run-logging and dry-run instructions. Before relying on dry-run for further development:
+The next scheduled Friday run (2026-05-22) will be the first to exercise the new mode-detection + filename-prefix logic. Before relying on these affordances for further development:
 
-1. **Live verification:** let the next scheduled run go through and inspect `runs/2026-05-22/` afterwards. Confirm all five artifacts are written and the email still arrives normally (`meta.json.sent == true`, `resend_message_id` present).
-2. **Manual dry-run smoke test:** before Friday, trigger the routine with `NMF_DRY_RUN=1` (or drop a `.dry-run` file at the repo root). Confirm all artifacts are written, no email is sent, and `meta.json.sent == false`.
+1. **Fast-mode smoke test:** `./scripts/nmf --fast`. Confirm artifacts land at `runs/<today>/fast-*` with `mode: "fast"` in `fast-meta.json`, the email arrives with `[TEST][FAST]` prefix, and total wall time is under two minutes.
+2. **Live production verification:** let the scheduled Friday run go through and inspect `runs/2026-05-22/` afterwards. Confirm artifacts are unprefixed (`email.html`, `meta.json`, etc.), the email arrives with no subject prefix, and `meta.json.mode == "production"`, `sent == true`, `resend_message_id` present.
 
-If anything is off — missing artifact, validation false negative, dry-run gate ignored — fix forward in `SKILL.md` before treating dry-run as a reliable dev affordance.
+If anything is off — missing artifact, validation mismatch, wrong mode detected, scheduled run picking up stray env vars — fix forward in `SKILL.md` before further changes.
 
-## Phase 4 — output-shape validation (deferred until Phase 3 is verified)
+## Phase 4 — output-shape validation (deferred until mode detection is verified)
 
 Extend pre-send validation beyond `from`/`to`/`subject`:
 
@@ -52,4 +53,4 @@ Resist designing this in advance — real friction is more informative than imag
 ## Explicitly NOT planned
 
 - **Multi-stage prompt split** (separate `prompts/01-…`, `prompts/02-…`). `SKILL.md` is short enough; splitting adds files for unclear gain.
-- **Synthetic fixtures.** Once Phase 3 logs exist, real run snapshots serve as fixtures naturally.
+- **Synthetic fixtures as a separate concept.** Fast mode already exercises the plumbing with stub candidates; real production runs serve as the realistic-data fixture.
