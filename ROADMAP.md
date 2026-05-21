@@ -11,6 +11,7 @@ The repo runs a working Friday digest via `SKILL.md`. This file tracks what's pl
 - Per-run artifacts (`listening-profile.json`, `candidates.md`, `email.html`, `email.txt`, `meta.json`) written to `runs/<YYYY-MM-DD>/` for audit
 - Dry-run mode available via `NMF_DRY_RUN=1` env var or `.dry-run` file at repo root
 - `CLAUDE.md` codifies dev-side conventions, distinct from the runtime `SKILL.md`
+- Repo is forkable: `config/delivery.yaml` is gitignored with an `.example` template, and the README walks a new user through Last.fm MCP + Resend MCP + scheduling on their own machine
 
 ## Most important next: verify Phase 3 on a real run
 
@@ -38,6 +39,16 @@ Best done **after** a few runs of `candidates.md` and `email.html`/`txt` exist �
 ## Phase 6 — model selection optimization (deferred)
 
 `SKILL.md` currently pins `model: opus` and `effort: max`. Revisit after 4–8 weeks of `meta.json` cost data accumulates: compare Opus + max against Sonnet and Haiku on curation quality vs per-run cost. The decision becomes evidence-driven once real numbers exist.
+
+## Phase 7 — distribution polish (after first external fork)
+
+The initial fork-and-run path is in place, but it's untested by a second user. Hold off on changes here until at least one outside person follows the README end-to-end. Then iterate on whatever actually tripped them up — likely candidates:
+
+- Smoother MCP onboarding if the Last.fm or Resend setup is the snag
+- A non-Resend delivery path baked into `SKILL.md` (currently described in README prose only) if multiple users want to skip Resend
+- A reset/cleanup helper for the inherited `runs/` history if it's noisy for new clones
+
+Resist designing this in advance — real friction is more informative than imagined friction.
 
 ## Explicitly NOT planned
 

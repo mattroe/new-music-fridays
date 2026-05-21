@@ -3,3 +3,4 @@ runs/.dry/
 .dry-run
 out/
 *.log
+config/delivery.yaml

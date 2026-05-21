@@ -1,0 +1,11 @@
+# Copy this file to `config/delivery.yaml` and fill in your values.
+# `config/delivery.yaml` is gitignored so your personal addresses
+# never get committed.
+
+# Plain email string only; the resend `from` field rejects "Name <email>" wrappers.
+from: you@your-verified-domain.example
+
+to: you@somewhere.example
+
+# {date} is substituted with today's date in MM-DD-YYYY format.
+subject_template: "New Music Friday - {date}"
