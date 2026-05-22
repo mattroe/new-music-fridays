@@ -12,7 +12,7 @@ The repo runs a working Friday digest via `SKILL.md`. This file tracks what's pl
 - Three run modes via env vars: production (scheduled fire, no flags), test (`NMF_TEST=1`, `[TEST]` subject prefix, full data path), fast (`NMF_FAST=1`, `[TEST][FAST]` prefix, trimmed Last.fm + stubbed candidates). All modes send via Resend; the prefix makes test sends obvious. The `scripts/nmf` wrapper exposes this as `--test` / `--fast` flags
 - Scheduled production runs are disruption-proof: they fire in a fresh process with no env vars, so manual test/fast invocations can never leak into Friday morning
 - `CLAUDE.md` codifies dev-side conventions, distinct from the runtime `SKILL.md`
-- Repo is forkable: `config/delivery.yaml` is gitignored with an `.example` template, and the README walks a new user through Last.fm MCP + Resend MCP + scheduling on their own machine
+- Repo is clone-and-run friendly: `config/delivery.yaml` is gitignored with an `.example` template, and the README walks a new user through Last.fm MCP + Resend MCP + scheduling on their own machine
 
 ## Most important next: verify on a real run
 
@@ -41,9 +41,9 @@ Best done **after** a few runs of `candidates.md` and `email.html`/`txt` exist �
 
 `SKILL.md` currently pins `model: opus` and `effort: max`. Revisit after 4–8 weeks of `meta.json` cost data accumulates: compare Opus + max against Sonnet and Haiku on curation quality vs per-run cost. The decision becomes evidence-driven once real numbers exist.
 
-## Phase 7 — distribution polish (after first external fork)
+## Phase 7 — distribution polish (after first external user)
 
-The initial fork-and-run path is in place, but it's untested by a second user. Hold off on changes here until at least one outside person follows the README end-to-end. Then iterate on whatever actually tripped them up — likely candidates:
+The initial clone-and-run path is in place, but it's untested by a second user. Hold off on changes here until at least one outside person follows the README end-to-end. Then iterate on whatever actually tripped them up — likely candidates:
 
 - Smoother MCP onboarding if the Last.fm or Resend setup is the snag
 - A non-Resend delivery path baked into `SKILL.md` (currently described in README prose only) if multiple users want to skip Resend

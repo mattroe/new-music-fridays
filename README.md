@@ -14,7 +14,7 @@ Claude (via the scheduled-task runtime) executes `SKILL.md` every Friday. The pr
 
 ## Use this yourself
 
-If you want your own weekly digest, you can fork this repo and run it on your own machine. Plan on about 5–10 minutes end to end.
+If you want your own weekly digest, clone this repo and run it on your own machine. Plan on about 5–10 minutes end to end.
 
 ### Prerequisites
 
