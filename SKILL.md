@@ -5,7 +5,16 @@ model: opus
 effort: max
 ---
 
-This routine produces my "New Music Friday" summary covering new music released in the last calendar week (the past 7 days). The release window is the past 7 days regardless of which day the run is triggered — Fridays for the scheduled production run, any day for manual test or fast runs.
+This routine produces my "New Music Friday" summary covering new music released in the last calendar week. The release window is **the 7 days following the most recent prior Friday, up to and including today** — release dates strictly **after** the prior Friday and ≤ `<today>`. On a Friday production run this resolves to `(last Friday, this Friday]` = exactly 7 days. On a non-Friday test or fast run it still excludes the prior Friday's NMF releases so the test surfaces this week's slate.
+
+## Load tools
+
+Before doing anything else, load all the deferred tools this routine needs in a single `ToolSearch` call so they're available without piecemeal discovery later:
+
+- `WebSearch`
+- The four Last.fm tools — match by function-name suffix on whichever MCP server they're registered under: `lastfm_auth_status`, `get_top_artists`, `get_music_recommendations`, `get_similar_artists`
+- `mcp__resend__send-email`
+- `TaskCreate`, `TaskUpdate`
 
 ## Read configuration first
 
@@ -39,6 +48,8 @@ Create `<run_dir>` (relative to the repo root) if it doesn't already exist.
 
 Record the current UTC timestamp (ISO 8601, e.g. via `date -u +"%Y-%m-%dT%H:%M:%SZ"`) as `<started_at>` — used in the finalize step to compute total run duration.
 
+Seed the task list now so progress is visible end-to-end. Create one `TaskCreate` per stage in this order: `gather` → `write profile` → `research` → `compose` → `validate` → `send` → `meta`. Mark each task `in_progress` when you start it and `completed` when finished.
+
 ## Data gathering (call in parallel)
 
 Use the Last.fm MCP tools (the server may be registered under a friendly name like `Last-fm` or a UUID-prefixed identifier — match the tool by its function name suffix).
@@ -61,13 +72,15 @@ Use the Last.fm MCP tools (the server may be registered under a friendly name li
 
 ## New release research
 
-**In fast mode**, skip web research entirely. Synthesize ~10 stub candidates from the 10 artists returned by the trimmed Last.fm call above. For each stub, invent a plausible album title, label, and release date within the past 7 days. The stubs only need to be realistic enough that the three content blocks below have something plausible to fill — content quality is explicitly not the point of a fast run.
+**In fast mode**, skip web research entirely. Synthesize ~10 stub candidates from the 10 artists returned by the trimmed Last.fm call above. For each stub, invent a plausible album title, label, and release date within the release window (strictly after the prior Friday, ≤ `<today>`). The stubs only need to be realistic enough that the three content blocks below have something plausible to fill — content quality is explicitly not the point of a fast run.
 
 **In test or production mode**, do the full research:
 
-Search the web for albums released in the past 7 days across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases.
+Search the web for albums released within the release window (strictly after the prior Friday, ≤ `<today>`) across the genres represented in my listening profile (derived from the top-artist charts, recommendations, and similar-artist fan-out above). Draw from the sources in `config/sources.txt` plus any genre-specific blogs or label sites relevant to that week's releases.
 
 When searching Pitchfork, scope to `site:pitchfork.com` (the whole site, not just `/best-new-music`) — general aggregator queries return poor results for editorial coverage.
+
+**Reject any candidate whose release date is on or before the prior Friday** — those releases belong to last week's NMF, not this one.
 
 Cross-reference everything against the listening data AND the `get_music_recommendations` output before including it.
 

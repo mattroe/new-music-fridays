@@ -45,4 +45,4 @@ for arg; do
   esac
 done
 
-exec claude --model opus --effort max -p "$(cat SKILL.md)"
+exec claude --model opus --effort max -p -- "$(cat SKILL.md)"

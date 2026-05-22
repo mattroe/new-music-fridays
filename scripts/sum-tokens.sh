@@ -5,20 +5,38 @@
 # where the encoded path replaces each `/` in the repo's absolute path with `-`.
 # This script finds the newest JSONL for the current repo and aggregates token counts.
 #
+# Path resolution order for REPO_DIR:
+#   1. $CLAUDE_PROJECT_DIR if set (Claude Code exports this for hooks and skill scripts)
+#   2. The script's own ../, resolved at invocation time
+#
+# If no JSONL exists at the encoded path, fall back to the most recently touched JSONL
+# under ~/.claude/projects (within the last 60 minutes). Only after both lookups fail
+# do we emit the error JSON. This defends against the script being invoked from a cwd
+# that doesn't match how Claude Code recorded the session (e.g. via a symlink).
+#
 # Output (stdout, single line of JSON):
 #   {"input": N, "output": N, "cache_read": N, "cache_create": N, "total": N}
 #
-# If no JSONL exists (e.g., running outside Claude Code), outputs an error object and exits 0.
 # Caveat: when called from inside the same session it's reading, the tokens spent on the
 # scrape itself and any subsequent messages are not yet recorded in the JSONL.
 
 set -euo pipefail
 
-REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+  REPO_DIR="$CLAUDE_PROJECT_DIR"
+else
+  REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+fi
+
 ENCODED=$(echo "$REPO_DIR" | sed 's|/|-|g')
 PROJECT_DIR="${HOME}/.claude/projects/${ENCODED}"
 
 LATEST=$(ls -t "$PROJECT_DIR"/*.jsonl 2>/dev/null | head -1 || true)
+
+if [[ -z "$LATEST" ]]; then
+  LATEST=$(find "${HOME}/.claude/projects" -maxdepth 2 -name '*.jsonl' -mmin -60 -print0 2>/dev/null \
+    | xargs -0 ls -t 2>/dev/null | head -1 || true)
+fi
 
 if [[ -z "$LATEST" ]]; then
   echo '{"error": "no session JSONL files found", "project_dir": "'"$PROJECT_DIR"'"}'
