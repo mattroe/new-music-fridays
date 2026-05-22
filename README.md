@@ -75,16 +75,17 @@ Scheduled tasks in Claude Code Desktop have two pieces of state: the **prompt** 
 ln -s "$(pwd)" ~/.claude/scheduled-tasks/new-music-fridays
 ```
 
-**b. Create the Routines entry that points at it.** Open Claude Code Desktop → click **Routines** in the sidebar → **New routine** → choose **Local**. Fill in:
+**b. Create the Routines entry.** Open Claude Code Desktop → **Routines** (sidebar) → **New routine** → **Local**. Set:
 
-- **Name**: `new-music-fridays` (must match the directory name above)
-- **Description**: anything, e.g. "Weekly new-music digest from Last.fm history"
-- **Instructions**: leave blank, or paste in the contents of `SKILL.md`. Either way, the file the task actually reads is `~/.claude/scheduled-tasks/new-music-fridays/SKILL.md` (the symlink), so what you type here doesn't matter once the symlink is in place.
-- **Folder**: select your cloned repo using the **real** path (e.g. `/Users/you/code/new-music-fridays`, not the `~/.claude/scheduled-tasks/...` symlink). Trust the folder when prompted. This controls the runtime working directory and is independent of the symlink in Step 4a — both are needed. If the Folder is wrong, `.claude/settings.local.json` won't load (the routine prompts for every tool), `scripts/sum-tokens.sh` can't resolve the session JSONL (so `meta.json.tokens` ends up `null`), and relative paths break.
-- **Schedule**: Weekly → Friday → pick a morning time in your local timezone (e.g. 9:00 AM).
-- Save.
+- **Name**: `new-music-fridays` — must exactly match the symlink directory in Step 4a. This is the linking mechanism between the two.
+- **Folder**: the real path to your repo (e.g. `/Users/you/code/new-music-fridays`, *not* the `~/.claude/scheduled-tasks/...` symlink). Trust the folder when prompted. This is the cwd at runtime — if it's wrong, `.claude/settings.local.json` won't load (you'll babysit permission prompts every fire) and `scripts/sum-tokens.sh` can't find the session JSONL (`meta.json.tokens` ends up `null`). See Troubleshooting if you need to change this field later — the UI's Save has been known to fail.
+- **Schedule**: Weekly → Friday → a morning time in your local timezone.
 
-**c. Approve permissions on the first run.** Click **Run now** on the task once, watch for permission prompts (Last.fm tools, Resend send, Read), and tick **always allow** on each so future scheduled fires run unattended. Heads-up: **Run now** runs in production mode and will send a real email. If you'd rather not send a production email right now, skip this step and do the smoke test in Step 5 instead — Step 5's fast-mode email is clearly marked `[TEST][FAST]` in the subject.
+Leave Description and Instructions blank — the routine reads `SKILL.md` from the repo via the Step 4a symlink, so what you type into Instructions is dead weight. Save.
+
+**c. Approve permissions on the first run.** Click **Run now** in the Routines UI and tick **always allow** on each permission prompt (Last.fm tools, Resend send, Read, Write, Edit, Bash patterns, TaskCreate/TaskUpdate). Those approvals persist for future scheduled fires.
+
+**Run now** is a Desktop button — it uses the Desktop app's authentication and works directly, no extra setup. The catch: it runs in **production** mode and sends a real, unprefixed email. If you'd rather not send production email right now, skip 4c and use Step 5's `--fast` smoke test instead. Note that Step 5 uses the standalone CLI binary at `~/.local/bin/claude`, which authenticates separately from Desktop — see Step 5 for first-time `/login`.
 
 ### Step 5: Smoke test in fast mode
 
