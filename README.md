@@ -38,7 +38,7 @@ The first time a Last.fm tool is invoked from a Claude Code session, the server 
 
 Skip this section entirely if you're going to use [another delivery option](#other-delivery-options).
 
-1. Create an API key at [resend.com/api-keys](https://resend.com/api-keys) — you'll need it for the next step.
+1. Create an API key at [resend.com/api-keys](https://resend.com/api-keys). Recommended scope: **Sending access** (not Full access), restricted to the specific domain you'll send from (matches `config/delivery.yaml::from`). The routine only calls `send-email`; tighter scope means a smaller blast radius if the key leaks.
 2. Add the MCP under user scope, substituting your real API key:
    ```bash
    claude mcp add -s user resend -e RESEND_API_KEY=re_xxxxxxxxx -- npx -y resend-mcp
@@ -80,7 +80,7 @@ ln -s "$(pwd)" ~/.claude/scheduled-tasks/new-music-fridays
 - **Name**: `new-music-fridays` (must match the directory name above)
 - **Description**: anything, e.g. "Weekly new-music digest from Last.fm history"
 - **Instructions**: leave blank, or paste in the contents of `SKILL.md`. Either way, the file the task actually reads is `~/.claude/scheduled-tasks/new-music-fridays/SKILL.md` (the symlink), so what you type here doesn't matter once the symlink is in place.
-- **Folder**: select your cloned repo. Trust the folder when prompted.
+- **Folder**: select your cloned repo using the **real** path (e.g. `/Users/you/code/new-music-fridays`, not the `~/.claude/scheduled-tasks/...` symlink). Trust the folder when prompted. This controls the runtime working directory and is independent of the symlink in Step 4a — both are needed. If the Folder is wrong, `.claude/settings.local.json` won't load (the routine prompts for every tool), `scripts/sum-tokens.sh` can't resolve the session JSONL (so `meta.json.tokens` ends up `null`), and relative paths break.
 - **Schedule**: Weekly → Friday → pick a morning time in your local timezone (e.g. 9:00 AM).
 - Save.
 
@@ -94,7 +94,9 @@ Confirm the full pipeline works end-to-end (Last.fm MCP responds, template fills
 ./scripts/nmf --fast
 ```
 
-Fast mode trims the slow parts — only one Last.fm call, no web research, stub candidates — and finishes in under two minutes. The email arrives in your inbox with subject `[TEST][FAST] New Music Friday - <date>` so it's obvious it's a test send. Artifacts land in `runs/<today>/` with a `fast-` filename prefix (`fast-email.html`, `fast-meta.json`, etc.).
+Fast mode trims the slow parts — only one Last.fm call, no web research, stub candidates — and finishes in roughly 2–5 minutes (Opus at max effort isn't snappy even on a trimmed pipeline). The email arrives in your inbox with subject `[TEST][FAST] New Music Friday - <date>` so it's obvious it's a test send. Artifacts land in `runs/<today>/` with a `fast-` filename prefix (`fast-email.html`, `fast-meta.json`, etc.).
+
+First-time CLI invocation will fail with `401 Invalid authentication credentials` — your Desktop login doesn't carry over to the `~/.local/bin/claude` binary. Fix: run `claude` once interactively, type `/login`, complete the OAuth flow in your browser, exit, then retry `./scripts/nmf --fast`. The CLI's token persists after that.
 
 > Note: the Routines UI's **Run now** button does **not** run in fast mode — it runs production and sends a real, unprefixed email. Use `./scripts/nmf --fast` for smoke tests.
 
@@ -125,6 +127,9 @@ If you don't want any email at all, leave the schedule paused and read `runs/<to
 - **Resend rejects the send.** Verify your sending domain's DNS has propagated (Resend's dashboard will tell you) and the `from` address matches a verified domain or Resend's sandbox sender. Resend rejects "Name &lt;email&gt;" display-name wrappers in `from`; pass a plain address.
 - **Run now from the Routines UI sent a real production email.** That's expected — the UI runs in production mode regardless of any local env vars. Use `./scripts/nmf --fast` (or `--test`) for smoke tests; those set the env vars before invoking SKILL.md.
 - **`meta.json` shows `sent: false`.** Either pre-send validation failed (look for the abort message in the run log) or the Resend call itself errored. The artifacts in the run directory are still useful for debugging.
+- **Scheduled run prompts for permission on every tool / runs much slower than usual.** Check the Routines UI's **Folder** field for the task — it must be the project's real path (e.g. `/Users/you/code/new-music-fridays`), not `~/.claude/scheduled-tasks/...` or some other unrelated path. The Folder is the cwd at runtime, and `.claude/settings.local.json` only loads when cwd matches the project. If the Routines UI refuses to save a Folder change, quit Claude Code Desktop and edit the `cwd` field in `~/Library/Application Support/Claude/claude-code-sessions/<ids>/scheduled-tasks.json` directly, then relaunch.
+- **`meta.json` shows `tokens: null` with a note about session JSONL elsewhere.** Same Folder issue — `scripts/sum-tokens.sh` derives the JSONL path from cwd. The script has defensive fallbacks (`$CLAUDE_PROJECT_DIR` + recent-mtime discovery), but the root cause is usually a mismatched Folder. Fix that and `tokens` populates on the next run.
+- **`./scripts/nmf --fast` (or `--test`) returns `401 Invalid authentication credentials`.** The CLI binary at `~/.local/bin/claude` authenticates separately from the Desktop app. Run `claude` interactively, type `/login`, complete the OAuth flow, exit. The token persists afterwards. If your shell has `ANTHROPIC_API_KEY` set to an empty string in rc files, unset it — it takes precedence over OAuth and forces 401s.
 
 ## Layout
 
