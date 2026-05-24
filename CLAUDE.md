@@ -4,7 +4,7 @@ This file is for Claude when **editing** the repo. The runtime prompt the schedu
 
 ## What this repo is
 
-A weekly "New Music Friday" digest based on Last.fm listening history, sent every Friday via Resend. See `README.md` for the user-facing overview and `ROADMAP.md` for what's next.
+A weekly "New Music Friday" digest based on Last.fm listening history, sent every Friday via Resend. See `README.md` for the user-facing overview and the repo's [open issues](https://github.com/mattroe/new-music-fridays/issues) for what's next.
 
 ## Wire-up
 
@@ -19,10 +19,10 @@ Edits in `~/code/new-music-fridays` are picked up by the next scheduled run. No 
 
 ## Conventions
 
-- **`ROADMAP.md` is forward-looking only.** Rewrite it when a phase ships rather than appending — past phase context belongs in commit messages and PR descriptions, not in the roadmap. Per-task implementation plans don't live in the repo at all; they belong in `~/.claude/plans/` (plan mode) or in the PR description.
+- **Forward-looking work lives in GitHub issues, not in the repo.** Open issues at https://github.com/mattroe/new-music-fridays/issues track what's planned next; close them when shipped (the PR description carries the past context). Per-task implementation plans don't live in the repo either — they belong in `~/.claude/plans/` (plan mode) or in the PR description.
 - **Behavior should remain stable across refactors.** When changing `SKILL.md`, configs, or templates, the email's structure and recipients should not silently drift. Validation steps in the prompt catch the obvious cases (`from`/`to`/`subject`/template-fill); the rest comes down to careful review.
 - **Configuration is data.** Sources, delivery details, and Last.fm parameters live in `config/*` and `templates/*`, not inlined in `SKILL.md`. If you find yourself adding prose to `SKILL.md` that's really a setting, extract it.
-- **Model and effort are pinned in `SKILL.md` frontmatter** (`model: opus`, `effort: max`) rather than inherited from `~/.claude/settings.json`. This isolates Friday's run from unrelated settings.json changes and makes the choice visible to anyone reading the repo. Revisit after cost data accumulates (see `ROADMAP.md` Phase 6).
+- **Model and effort are pinned in `SKILL.md` frontmatter** (`model: opus`, `effort: max`) rather than inherited from `~/.claude/settings.json`. This isolates Friday's run from unrelated settings.json changes and makes the choice visible to anyone reading the repo. Revisit after cost data accumulates (see [#8](https://github.com/mattroe/new-music-fridays/issues/8)).
 
 ## Gotchas worth knowing
 

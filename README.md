@@ -146,4 +146,4 @@ If you don't want any email at all, leave the schedule paused and read `runs/<to
 
 ## Development
 
-Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions and `ROADMAP.md` for what's next.
+Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions and the repo's [open issues](https://github.com/mattroe/new-music-fridays/issues) for what's next.
