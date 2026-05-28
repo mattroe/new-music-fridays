@@ -99,8 +99,6 @@ Fast mode trims the slow parts — only one Last.fm call, no web research, stub 
 
 First-time CLI invocation will fail with `401 Invalid authentication credentials` — your Desktop login doesn't carry over to the `~/.local/bin/claude` binary. Fix: run `claude` once interactively, type `/login`, complete the OAuth flow in your browser, exit, then retry `./scripts/nmf --fast`. The CLI's token persists after that.
 
-> Note: the Routines UI's **Run now** button does **not** run in fast mode — it runs production and sends a real, unprefixed email. Use `./scripts/nmf --fast` for smoke tests.
-
 If you also want to exercise the full Last.fm fan-out and web research path (without committing to a production send), use `./scripts/nmf --test`. That takes the same 5–15 minutes as a real run, with `[TEST]` in the subject and `test-` filename prefix. Useful if you've changed the research logic.
 
 The scheduled Friday run is its own path — fired by Claude Code's scheduled-task runtime with no env vars set, it always runs in production mode regardless of any local state. Leftover `./scripts/nmf` invocations can't disrupt it.
@@ -132,6 +130,17 @@ If you don't want any email at all, leave the schedule paused and read `runs/<to
 - **`meta.json` shows `tokens: null` with a note about session JSONL elsewhere.** Same Folder issue — `scripts/sum-tokens.sh` derives the JSONL path from cwd. The script has defensive fallbacks (`$CLAUDE_PROJECT_DIR` + recent-mtime discovery), but the root cause is usually a mismatched Folder. Fix that and `tokens` populates on the next run.
 - **`./scripts/nmf --fast` (or `--test`) returns `401 Invalid authentication credentials`.** The CLI binary at `~/.local/bin/claude` authenticates separately from the Desktop app. Run `claude` interactively, type `/login`, complete the OAuth flow, exit. The token persists afterwards. If your shell has `ANTHROPIC_API_KEY` set to an empty string in rc files, unset it — it takes precedence over OAuth and forces 401s.
 
+## What's next
+
+Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set:
+
+- [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer next week's picks
+- [#5](https://github.com/mattroe/new-music-fridays/issues/5) — typed source data with genre routing and endorsement attribution
+- [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape
+- [#7](https://github.com/mattroe/new-music-fridays/issues/7) — concrete "fit to taste" rubric in `SKILL.md`
+- [#8](https://github.com/mattroe/new-music-fridays/issues/8) — revisit model + effort choice once cost data has accumulated
+- [#9](https://github.com/mattroe/new-music-fridays/issues/9) — polish distribution after a first external user follows the README
+
 ## Layout
 
 - `SKILL.md` — orchestrator prompt; reads the configs and templates below
@@ -146,4 +155,4 @@ If you don't want any email at all, leave the schedule paused and read `runs/<to
 
 ## Development
 
-Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions and the repo's [open issues](https://github.com/mattroe/new-music-fridays/issues) for what's next.
+Edit configs or templates directly; the orchestrator picks them up on the next run. See `CLAUDE.md` for editing conventions.
