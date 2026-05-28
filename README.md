@@ -134,6 +134,7 @@ If you don't want any email at all, leave the schedule paused and read `runs/<to
 
 Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set:
 
+- [#10](https://github.com/mattroe/new-music-fridays/issues/10) — move the scheduled run off the local machine so the Friday fire isn't tied to my laptop being awake
 - [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer next week's picks
 - [#5](https://github.com/mattroe/new-music-fridays/issues/5) — typed source data with genre routing and endorsement attribution
 - [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape
