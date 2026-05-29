@@ -11,7 +11,7 @@ This routine produces my "New Music Friday" summary covering new music released 
 
 Before doing anything else, load all the deferred tools this routine needs in a single `ToolSearch` call so they're available without piecemeal discovery later:
 
-- `WebSearch`
+- `WebSearch` and `WebFetch` — `WebSearch` finds new-release coverage; `WebFetch` reads the source, blog, and label pages it surfaces during research
 - The four Last.fm tools — match by function-name suffix on whichever MCP server they're registered under: `lastfm_auth_status`, `get_top_artists`, `get_music_recommendations`, `get_similar_artists`
 - `mcp__resend__send-email`
 - `TaskCreate`, `TaskUpdate`
@@ -26,13 +26,21 @@ Before doing anything else, load all the deferred tools this routine needs in a 
 
 ## Set up run state
 
-Determine today's date in `YYYY-MM-DD` format — call this `<today>`.
+Read all run-state inputs by running this exact command once from the repo root:
 
-Detect the run mode by inspecting environment variables only. File markers are intentionally NOT used so a leftover manual flag can never disrupt the scheduled production run:
+    bash scripts/run-state.sh start
 
-- **Fast mode** is on iff the `NMF_FAST` environment variable is set to any non-empty value.
-- **Test mode** is on iff the `NMF_TEST` environment variable is set OR fast mode is on (fast implies test).
-- **Production mode** is the default when neither env var is set — this is what the scheduled Friday run uses.
+Parse its `key=value` output. Do NOT improvise inline shell (`echo`, `date`, `$(...)`) to derive these values — command substitution trips the Bash permission gate, which stalls an unattended run. The output provides:
+
+- `today` — today's date in `YYYY-MM-DD`; call this `<today>`.
+- `started_at` and `started_epoch` — the run start as an ISO 8601 UTC timestamp and as epoch seconds. Keep both; the finalize step needs them.
+- `NMF_FAST` and `NMF_TEST` — the run-mode environment variables (empty when unset).
+
+Detect the run mode from the `NMF_FAST` / `NMF_TEST` values only. File markers are intentionally NOT used so a leftover manual flag can never disrupt the scheduled production run:
+
+- **Fast mode** is on iff `NMF_FAST` is non-empty.
+- **Test mode** is on iff `NMF_TEST` is non-empty OR fast mode is on (fast implies test).
+- **Production mode** is the default when both are empty — this is what the scheduled Friday run uses.
 
 Set `<mode>` to the most-specific applicable label: `"fast"` if fast is on, otherwise `"test"` if test is on, otherwise `"production"`.
 
@@ -45,8 +53,6 @@ Set the filename prefix `<fname_prefix>` from `<mode>`:
 All artifacts go to `<run_dir>` = `runs/<today>/` regardless of mode. The whole `runs/` tree is gitignored — artifacts are local-only since they can incidentally contain personal data (Last.fm history, recipient address, etc.). The filename prefix is what distinguishes modes within the shared dated directory.
 
 Create `<run_dir>` (relative to the repo root) if it doesn't already exist.
-
-Record the current UTC timestamp (ISO 8601, e.g. via `date -u +"%Y-%m-%dT%H:%M:%SZ"`) as `<started_at>` — used in the finalize step to compute total run duration.
 
 Seed the task list now so progress is visible end-to-end. Create one `TaskCreate` per stage in this order: `gather` → `write profile` → `research` → `compose` → `validate` → `send` → `meta`. Mark each task `in_progress` when you start it and `completed` when finished.
 
@@ -133,7 +139,7 @@ Send via the `resend` connector in all modes — test and fast modes also send, 
 
 Write `<run_dir>/<fname_prefix>meta.json` capturing run status alongside cost-tracking metrics.
 
-First, capture `<finished_at>` as the current UTC timestamp (ISO 8601), and compute `<duration_seconds>` = `<finished_at>` − `<started_at>`.
+First, run `bash scripts/run-state.sh finish <started_epoch>` (passing the literal `started_epoch` number recorded in the run-state step) and read `finished_at` and `duration_seconds` from its `key=value` output. As in the run-state step, do not improvise inline `date` or arithmetic shell.
 
 Then run `scripts/sum-tokens.sh` (from the repo root) to capture real API token usage from this session's JSONL. Parse its JSON output for the `tokens` field below. If the script returns an `error` object (no JSONL found), set `tokens` to `null` and add a note explaining why.
 
