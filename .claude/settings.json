@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(nc:*)",
+      "Bash(ncat:*)",
+      "Bash(netcat:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(sftp:*)",
+      "Bash(telnet:*)",
+      "Bash(osascript:*)",
+      "Bash(sudo:*)",
+      "Bash(launchctl:*)",
+      "Bash(crontab:*)",
+      "Bash(defaults write:*)"
+    ]
+  }
+}
