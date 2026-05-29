@@ -39,8 +39,13 @@ case "$cmd" in
     ;;
   finish)
     started_epoch="${2:-}"
-    if [[ -z "$started_epoch" ]]; then
-      echo "usage: $0 finish <started_epoch>" >&2
+    # Validate as a non-negative integer BEFORE any arithmetic use. Bash $(( ))
+    # performs command substitution inside array subscripts, so an unvalidated
+    # value like 'now_epoch[$(cmd)]' would execute cmd — arbitrary code exec that
+    # bypasses the permissions.deny list when this allowlisted script is invoked
+    # by an injected agent. The ^[0-9]+$ guard admits only digits, closing it.
+    if [[ ! "$started_epoch" =~ ^[0-9]+$ ]]; then
+      echo "usage: $0 finish <epoch-seconds>  (non-negative integer)" >&2
       exit 2
     fi
     now_epoch="$(date +%s)"
