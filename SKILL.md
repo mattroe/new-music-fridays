@@ -20,6 +20,8 @@ Before doing anything else, load all the deferred tools this routine needs in a 
 
 ## Read configuration first
 
+First, ensure `config/delivery.yaml` exists by running `bash scripts/write-delivery.sh`. A cloud routine clones the repo fresh and `config/delivery.yaml` is gitignored, so the script materializes it from the `NMF_FROM`/`NMF_TO`/`NMF_SUBJECT` environment variables when they're set; for a local run those are unset and it leaves your existing `config/delivery.yaml` untouched. Then read:
+
 - `config/delivery.yaml` — sender, recipient, subject template
 - `config/lastfm.yaml` — Last.fm query parameters
 - `config/sources.txt` — editorial sources to consult (one per line)

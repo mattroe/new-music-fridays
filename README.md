@@ -63,10 +63,7 @@ cp .claude/settings.local.json.example .claude/settings.local.json
 
 2. **Get your repo + delivery config onto GitHub.** The routine clones a repo each run, and `config/delivery.yaml` is gitignored — so the clone won't have your delivery values unless you provide them. Either:
    - commit `config/delivery.yaml` to a **private** repo (it's gitignored by default, so force it in: `git add -f config/delivery.yaml`), **or**
-   - keep it out of git: set the values as routine **environment variables** and add a one-line **setup script** to the routine's environment that writes the file before each run, e.g.
-     ```bash
-     printf 'from: %s\nto: %s\nsubject_template: "%s"\n' "$NMF_FROM" "$NMF_TO" "$NMF_SUBJECT" > config/delivery.yaml
-     ```
+   - keep it out of git: set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` as routine **environment variables** (step 3). At the start of each run `SKILL.md` calls `scripts/write-delivery.sh`, which writes `config/delivery.yaml` from them — done *during* the run, in the repo root. (An environment **setup script** can't do this: it runs before the repo is cloned, so there's no `config/` to write into.)
 
 3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) (or `/schedule` from the CLI):
    - **Repository:** the repo from step 2.
@@ -74,7 +71,7 @@ cp .claude/settings.local.json.example .claude/settings.local.json
    - **Model:** Opus for the best curation (or Sonnet/Haiku for cheaper, faster runs). The `model:`/`effort:` frontmatter in `SKILL.md` is ignored by routines — pick the model here.
    - **Schedule:** Weekly → Friday, a morning time. Routines run on a UTC-based clock, so choose a time that still falls on Friday in UTC; otherwise the release window (`last Friday → this Friday`) can shift by a day.
    - **Connectors:** enable Last.fm.
-   - **Environment variables:** set `RESEND_API_KEY` (a Resend **Sending-access** key for your domain) so `scripts/send-email.mjs` can send. If you used the setup-script option in step 2, add `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` here too.
+   - **Environment variables:** set `RESEND_API_KEY` (a Resend **Sending-access** key for your domain) so `scripts/send-email.mjs` can send. For the keep-it-out-of-git option (step 2), also add `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT`. Leave the environment's **Setup script** empty — delivery config is written during the run, not at setup.
 
 4. **Test it.** Use **Run now** to fire the routine — note this sends a real, unprefixed production email. Open the run as a session from the routines list to see what it did and its token usage. (`runs/<date>/` artifacts don't persist in the cloud, and `meta.json.tokens` will be `null` — that's expected.) To smoke-test without a production send, run Path B's `./scripts/nmf --fast` locally first.
 
@@ -132,7 +129,7 @@ If you don't want any email at all, leave the schedule paused and read `runs/<to
 
 - **Pre-send validation aborts with a `from`/`to`/`subject` mismatch.** Check `config/delivery.yaml` — the values must match exactly what the prompt is about to send. Inline YAML comments on the same line as a value can trip naive comparisons, so keep comments on their own lines.
 - **Cloud routine sends nothing.** There's no Resend connector — the cloud send uses `scripts/send-email.mjs`. Confirm `RESEND_API_KEY` is set on the routine's environment and that running the script is permitted (it's allowlisted in `.claude/settings.local.json.example`). The script prints the Resend error and exits non-zero on failure, so check the run's session transcript.
-- **Cloud routine aborts validation with empty `from`/`to`.** The fresh clone is missing `config/delivery.yaml` (it's gitignored). Provide it via Path A step 2 (commit to a private repo, or a setup script that writes it from env vars).
+- **Cloud routine aborts validation with empty `from`/`to`.** The fresh clone is missing `config/delivery.yaml` (it's gitignored). Either commit it to your private repo (`git add -f`), or set `NMF_FROM`/`NMF_TO`/`NMF_SUBJECT` env vars so `scripts/write-delivery.sh` (run by `SKILL.md`) materializes it. Don't put this in the environment's *setup script* — that runs before the repo is cloned, so `config/` doesn't exist yet.
 - **"Tool not found" errors during the run.** Confirm Last.fm is connected — `claude mcp list` (local) or the routine's Connectors tab (cloud). The Last.fm server may register under a friendly name or a UUID prefix — `SKILL.md` matches by function-name suffix so either form works. (Resend isn't a tool on the cloud path — it's the `scripts/send-email.mjs` send.)
 - **Resend rejects the send.** Verify your sending domain's DNS has propagated (Resend's dashboard will tell you) and the `from` address matches a verified domain or Resend's sandbox sender. Resend rejects "Name &lt;email&gt;" display-name wrappers in `from`; pass a plain address.
 - **Run now from the Routines UI sent a real production email.** That's expected — it runs in production mode regardless of any local env vars. Use `./scripts/nmf --fast` (or `--test`) for smoke tests; those set the env vars before invoking SKILL.md.
