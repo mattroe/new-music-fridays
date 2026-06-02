@@ -3,3 +3,7 @@ runs/
 out/
 *.log
 config/delivery.yaml
+
+# Per-install permission allow list — differs per clone (MCP prefixes vary).
+# Copy .claude/settings.local.json.example to .claude/settings.local.json and edit.
+.claude/settings.local.json
