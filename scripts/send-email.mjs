@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // Send the rendered "New Music Friday" email via Resend's REST API.
 //
-// Why this exists: an Anthropic-hosted cloud routine can't run the local
-// `npx resend-mcp` stdio MCP, and the repo's `.claude/settings.json` denies
-// direct `curl`/`wget` (anti-exfil defense-in-depth for an agent that reads
-// untrusted web pages). This committed script is the narrow, reviewed
-// alternative: it only ever POSTs to Resend's single hardcoded endpoint, so
-// allowlisting `Bash(node scripts/send-email.mjs:*)` grants the send capability
-// without reopening general outbound HTTP. Don't "simplify" this to a broad
-// `curl` allow — that would reopen the exfiltration path the deny-list closes.
+// Why this exists: Resend ships no hosted connector for cloud routines, and the
+// repo's `.claude/settings.json` denies direct `curl`/`wget` (anti-exfil
+// defense-in-depth for an agent that reads untrusted web pages). This committed
+// script is the narrow, reviewed alternative: it only ever POSTs to Resend's
+// single hardcoded endpoint, so allowlisting `Bash(node scripts/send-email.mjs:*)`
+// grants the send capability without reopening general outbound HTTP. Don't
+// "simplify" this to a broad `curl` allow — that would reopen the exfiltration
+// path the deny-list closes.
 //
 // SKILL.md still validates from/to/subject against config/delivery.yaml before
 // invoking this; the body comes from the files SKILL.md renders in the run dir.
