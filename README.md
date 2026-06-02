@@ -106,7 +106,6 @@ If you don't want any email at all, replace the Send step in `SKILL.md` with one
 Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set:
 
 - [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer next week's picks
-- [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape
 - [#7](https://github.com/mattroe/new-music-fridays/issues/7) — concrete "fit to taste" rubric in `SKILL.md`
 - [#8](https://github.com/mattroe/new-music-fridays/issues/8) — revisit model + effort choice once cost data has accumulated
 - [#9](https://github.com/mattroe/new-music-fridays/issues/9) — polish distribution after a first external user follows the README
