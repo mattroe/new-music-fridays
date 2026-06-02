@@ -36,7 +36,15 @@ Edits are picked up on the next run with no build step — commit and push, and 
 
 ## How to test changes
 
-The routine runs in the cloud, so test there. The run mode is driven by the `NMF_FAST` / `NMF_TEST` env vars (see `SKILL.md`'s "Set up run state"):
+Two layers. Deterministic checks run in CI (and locally); the routine itself runs in the cloud.
+
+**Deterministic checks (CI + local).** `.github/workflows/ci.yml` gates every PR and push to `main` with a contract linter (`scripts/check-contract.mjs` — asserts `SKILL.md` still matches the scripts, configs, and templates it references, and that `send-email.mjs` stays zero-dependency with its hardcoded Resend endpoint) and unit tests (`node --test test/*.test.mjs` — exit codes plus the exact Resend payload for the send script, and the run-state/write-delivery scripts). No cloud, connector, or Resend key needed — run them locally before pushing:
+
+    node scripts/check-contract.mjs && node --test test/*.test.mjs
+
+They catch mechanical drift (a renamed script, a dropped config key, an unfilled template placeholder), not inference quality or the live integration — that's the cloud runs.
+
+**Cloud runs.** The routine runs in the cloud, so test there. The run mode is driven by the `NMF_FAST` / `NMF_TEST` env vars (see `SKILL.md`'s "Set up run state"):
 
 1. **Fast run** — set `NMF_FAST=1` on a routine and use **Run now**: trimmed Last.fm (one call) + stubbed candidates + `[TEST][FAST]` subject. ~2–5 min. Sends a real (marked) email. Use for plumbing checks (template fill, validation, Resend send).
 2. **Test run** — set `NMF_TEST=1` instead: full Last.fm + web research + `[TEST]` subject. Same wall time as a real run (5–15 min). Use when changing research logic or rubric.

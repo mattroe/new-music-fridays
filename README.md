@@ -132,6 +132,19 @@ To smoke-test without sending a production email, do a marked test run in the cl
 
 Verify from the run's session transcript and the delivered email. The scheduled Friday run has no env vars set, so it always runs in production mode regardless of any test routine.
 
+### Local checks (CI)
+
+Separate from the cloud smoke test, a GitHub Actions workflow (`.github/workflows/ci.yml`) gates every pull request and push to `main` with fast, deterministic checks that need no cloud, Last.fm connector, or Resend key:
+
+- a contract linter (`scripts/check-contract.mjs`) that verifies `SKILL.md` still lines up with the scripts, configs, and templates it drives — and that `scripts/send-email.mjs` stays zero-dependency with its single hardcoded endpoint;
+- unit tests (`node --test test/*.test.mjs`) covering the send script's exit codes and Resend payload, plus the run-state and write-delivery scripts.
+
+Run them locally before pushing:
+
+    node scripts/check-contract.mjs && node --test test/*.test.mjs
+
+These catch mechanical breakage (a renamed script, a dropped config key, an unfilled template placeholder). They can't exercise the connector, the real send, or the model — the cloud test run above remains the only end-to-end check.
+
 ## Other delivery options
 
 Resend is one option — swap in any transactional-email provider (Postmark, Mailgun, SendGrid, etc.) by editing the "Send" section of `SKILL.md` and the endpoint and payload in `scripts/send-email.mjs`. The `html`, `text`, `from`, `to`, and `subject` all still come from `config/delivery.yaml` and `templates/`.
