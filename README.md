@@ -7,9 +7,9 @@ A weekly "New Music Friday" digest based on your Last.fm listening history. Runs
 Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The prompt:
 
 1. Pulls your Last.fm listening profile (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20)
-2. Searches the web across Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, and NPR Music — plus genre-specific blogs and label sites — for releases in the past 7 days
+2. Searches the web in two passes — discovery across the tier-1 and genre-routed tier-2 sources in `config/release-sources.yaml`, then an endorsement check against `config/review-sources.yaml` — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
-4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks)
+4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks, and Worth a Second Look) with endorsement citations where picks earned them
 5. Sends the email via Resend's REST API and writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email and the run's session transcript are the durable record (optionally also emails a separate `[NMF log]` copy of the kept/skipped reasoning — see `send_run_log`)
 
 ## Run your own
@@ -41,7 +41,8 @@ Edit `config/delivery.yaml`:
 
 Optional tuning:
 
-- `config/sources.txt` — editorial publications consulted during research (one per line)
+- `config/release-sources.yaml` — where to look for releases (tier-1 always; tier-2 routed by genre)
+- `config/review-sources.yaml` — endorsement signals and the citation allowlist for the email
 - `config/lastfm.yaml` — query periods, top-artist limits, similar-artist fan-out
 
 ### Set up the routine
@@ -82,7 +83,8 @@ If you don't want any email at all, replace the Send step in `SKILL.md` with one
 
 ## Customizing for your taste
 
-- `config/sources.txt` — swap in publications, blogs, and label sites that match your taste. One source per line.
+- `config/release-sources.yaml` — swap in publications, blogs, and label sites for discovery. Tier-1 sources are consulted every run; tier-2 only when their `genres` overlap that week's listening profile.
+- `config/review-sources.yaml` — the review outlets whose endorsements decorate picks, plus the exact citation strings allowed in the email.
 - `config/lastfm.yaml` — tune query periods, top-artist limits, and the similar-artist fan-out depth.
 - `templates/email.html` and `templates/email.txt` — edit the email scaffold and copy. Keep the `{{placeholders}}` aligned across both files.
 - **Model + effort.** The model is set on the routine itself — Opus for the best curation, or Sonnet/Haiku for cheaper, faster runs at the cost of curation depth. The `model:`/`effort:` frontmatter in `SKILL.md` is ignored by routines; it documents the intended default (see the [Claude Code skills docs](https://code.claude.com/docs/en/skills) for what the fields mean).
@@ -104,7 +106,6 @@ If you don't want any email at all, replace the Send step in `SKILL.md` with one
 Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set:
 
 - [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer next week's picks
-- [#5](https://github.com/mattroe/new-music-fridays/issues/5) — typed source data with genre routing and endorsement attribution
 - [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape
 - [#7](https://github.com/mattroe/new-music-fridays/issues/7) — concrete "fit to taste" rubric in `SKILL.md`
 - [#8](https://github.com/mattroe/new-music-fridays/issues/8) — revisit model + effort choice once cost data has accumulated
@@ -116,7 +117,8 @@ Forward-looking work lives in [open issues](https://github.com/mattroe/new-music
 - `CLAUDE.md` — developer context for editing the repo (distinct from `SKILL.md`)
 - `config/delivery.yaml.example` — template; copy to `config/delivery.yaml` and fill in
 - `config/lastfm.yaml` — Last.fm query periods, limits, similar-artist fan-out
-- `config/sources.txt` — editorial sources to consult (one per line)
+- `config/release-sources.yaml` — discovery sweep (tier-1 always; tier-2 genre-routed)
+- `config/review-sources.yaml` — endorsement signals + citation allowlist for the email
 - `templates/email.html` and `templates/email.txt` — email scaffolds with `{{placeholders}}`
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
 - `scripts/run-state.sh` — emits run-state values (date, run mode, timestamps, duration) for `SKILL.md`
