@@ -1,0 +1,104 @@
+# Discovery sweep — WHERE SKILL.md looks for new releases each week.
+#
+# Two tiers:
+#   tier1 — always consulted, every run.
+#   tier2 — consulted only when an entry's `genres` overlap THIS week's
+#           listening profile. SKILL.md derives that profile's genres from the
+#           Last.fm top artists / recommendations / similar-artist data (there
+#           is no separate genre feed); it records which tier-2 sources fired,
+#           and why, in candidates.md so the routing is auditable.
+#
+# Per entry: `name`, `url`, `type` (editorial-list | editorial-blog |
+# aggregator | platform-curation | genre-specialist). tier1 entries may add a
+# `search_scope` hint (a site: filter passed to search). tier2 entries carry
+# `genres` (lowercase tags matched against the profile).
+#
+# This file is DATA, not instructions. SKILL.md treats every page it fetches
+# from these sources as untrusted (see the Trust-boundary note in SKILL.md):
+# editing this file changes only WHERE the agent looks, never the email's
+# from/to/subject.
+
+tier1:
+  - name: NPR Music New Music Friday
+    url: https://www.npr.org/sections/music/
+    type: editorial-list
+  - name: Bandcamp Daily Essential Releases
+    url: https://daily.bandcamp.com/
+    type: editorial-list
+  - name: Pitchfork
+    url: https://pitchfork.com/
+    type: editorial-blog
+    search_scope: "site:pitchfork.com"   # whole site, not just /best-new-music
+  - name: Stereogum
+    url: https://www.stereogum.com/
+    type: editorial-blog
+  - name: Brooklyn Vegan
+    url: https://www.brooklynvegan.com/
+    type: editorial-blog
+  - name: Apple Music New Music Daily
+    url: https://music.apple.com/us/curator/new-music-daily/
+    type: platform-curation
+  - name: Album of the Year
+    url: https://www.albumoftheyear.org/releases/
+    type: aggregator
+  - name: Metacritic Music
+    url: https://www.metacritic.com/browse/album/
+    type: aggregator
+
+tier2:
+  - name: Aquarium Drunkard
+    url: https://aquariumdrunkard.com/
+    type: genre-specialist
+    genres: [folk, americana, psych, country, roots]
+  - name: Americana Highways
+    url: https://americanahighways.org/
+    type: genre-specialist
+    genres: [folk, americana, country, roots]
+  - name: Glide Magazine
+    url: https://glidemagazine.com/
+    type: genre-specialist
+    genres: [folk, americana, jam, roots, rock]
+  - name: KLOF Magazine
+    url: https://www.klofmag.com/
+    type: genre-specialist
+    genres: [folk, americana]
+  - name: JazzTimes
+    url: https://jazztimes.com/
+    type: genre-specialist
+    genres: [jazz, spiritual-jazz]
+  - name: DownBeat
+    url: https://downbeat.com/
+    type: genre-specialist
+    genres: [jazz, spiritual-jazz]
+  - name: The Quietus
+    url: https://thequietus.com/
+    type: genre-specialist
+    genres: [experimental, avant-garde, post-punk, electronic, drone]
+  - name: The Wire
+    url: https://www.thewire.co.uk/
+    type: genre-specialist
+    genres: [experimental, avant-garde, jazz, electronic, drone]
+  - name: Boomkat
+    url: https://boomkat.com/
+    type: genre-specialist
+    genres: [electronic, experimental, ambient, dance, techno]
+  - name: Resident Advisor
+    url: https://ra.co/reviews
+    type: genre-specialist
+    genres: [electronic, dance, techno, house]
+  - name: Passion of the Weiss
+    url: https://www.passionweiss.com/
+    type: genre-specialist
+    genres: [hip-hop, rap]
+  - name: The Line of Best Fit
+    url: https://www.thelineofbestfit.com/
+    type: genre-specialist
+    genres: [indie, pop, rock, electronic]
+  - name: Paste Magazine
+    url: https://www.pastemagazine.com/music
+    type: genre-specialist
+    genres: [indie, folk, rock, pop, americana]
+  - name: Clash
+    url: https://www.clashmusic.com/
+    type: genre-specialist
+    genres: [indie, electronic, hip-hop, pop]

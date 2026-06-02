@@ -15,3 +15,6 @@ A) ARTISTS I'VE ALREADY LISTENED TO
 B) DISCOVERY PICKS
 ------------------
 {{section_b}}
+
+
+{{second_look}}

@@ -1,0 +1,51 @@
+# Endorsement signals — used to (1) decorate kept candidates with a short
+# citation in the email and (2) drive the "Worth a Second Look" step.
+#
+# Per entry:
+#   source           — the publication.
+#   signal           — what counts as an endorsement (the rule the agent checks).
+#   citation_formats — the EXACT string(s) that may be rendered in the email.
+#                      Use {score} where a number varies; the agent fills it from
+#                      the source.
+#
+# citation_formats is the ALLOWLIST for citations: pre-send validation rejects
+# any endorsement string in the rendered email that doesn't match one of these
+# (literal text, with a number in the {score} slot). That guards against
+# hallucinated or injection-planted praise — so this file, like
+# release-sources.yaml, is untrusted-input POLICY, not instructions. Editing it
+# changes only which endorsements may appear, never the email's from/to/subject.
+
+sources:
+  - source: Pitchfork
+    signal: "Best New Music, or a review score >= 8.0"
+    citation_formats:
+      - "Pitchfork BNM"
+      - "Pitchfork {score}"
+  - source: The Quietus
+    signal: "Album of the Week"
+    citation_formats:
+      - "Quietus Album of the Week"
+  - source: Album of the Year
+    signal: 'critic/user aggregate >= 80, or flagged "Must Hear"'
+    citation_formats:
+      - "AOTY {score}"
+  - source: Metacritic
+    signal: "metascore >= 85"
+    citation_formats:
+      - "Metacritic {score}"
+  - source: Bandcamp Daily
+    signal: "Album of the Day, or a curated Essentials pick"
+    citation_formats:
+      - "Bandcamp Daily AOTD"
+  - source: Stereogum
+    signal: "Album of the Week"
+    citation_formats:
+      - "Stereogum AOTW"
+  - source: Resident Advisor
+    signal: "review score >= 4.0/5"
+    citation_formats:
+      - "RA {score}"
+  - source: The Wire
+    signal: "Recommended, or an issue feature/cover"
+    citation_formats:
+      - "The Wire Recommended"
