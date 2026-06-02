@@ -7,10 +7,10 @@
 # cloned, so there's no config/ to write into. SKILL.md therefore runs THIS
 # during the run, in the repo root, where config/ exists.
 #
-# No-op for local runs: when NMF_* are unset, the existing (local) config/
-# delivery.yaml is left untouched. The trust boundary is unchanged — values
-# come from trusted routine env vars, and SKILL.md still reads and validates
-# from/to/subject against config/delivery.yaml before sending.
+# When NMF_* are unset it's a no-op, leaving any existing config/delivery.yaml
+# untouched. The trust boundary is unchanged — values come from trusted routine
+# env vars, and SKILL.md still reads and validates from/to/subject against
+# config/delivery.yaml before sending.
 set -euo pipefail
 
 if [[ -n "${NMF_FROM:-}" && -n "${NMF_TO:-}" && -n "${NMF_SUBJECT:-}" ]]; then

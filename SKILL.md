@@ -7,20 +7,21 @@ effort: max
 
 This routine produces my "New Music Friday" summary covering new music released in the last calendar week. The release window is **the 7 days following the most recent prior Friday, up to and including today** — release dates strictly **after** the prior Friday and ≤ `<today>`. On a Friday production run this resolves to `(last Friday, this Friday]` = exactly 7 days. On a non-Friday test or fast run it still excludes the prior Friday's NMF releases so the test surfaces this week's slate.
 
-> **Runtime note.** This prompt runs two ways: as an Anthropic-hosted cloud routine (recommended — fires even when your machine is off) or as a local Claude Code scheduled task. When run as a cloud routine the model and effort are set on the routine itself, so the `model:`/`effort:` frontmatter above is informational; and `runs/<date>/` artifacts are ephemeral — the sent email and the run's session transcript are the durable record (`scripts/sum-tokens.sh` finds no session JSONL, so `meta.json.tokens` ends up `null`, which the finalize step already handles). Every step below is otherwise identical across both.
+> **Runtime note.** This prompt runs as an Anthropic-hosted cloud routine. The model and effort are set on the routine itself, so the `model:`/`effort:` frontmatter above is informational. The VM is discarded after each run, so `runs/<date>/` artifacts are ephemeral — the sent email and the run's session transcript are the durable record, and `meta.json.tokens` is always `null` (a routine run can't read its own token usage; review it in the run's session transcript instead).
 
 ## Load tools
 
 Before doing anything else, load all the deferred tools this routine needs in a single `ToolSearch` call so they're available without piecemeal discovery later:
 
 - `WebSearch` and `WebFetch` — `WebSearch` finds new-release coverage; `WebFetch` reads the source, blog, and label pages it surfaces during research
-- The four Last.fm tools — match by function-name suffix on whichever MCP server they're registered under: `lastfm_auth_status`, `get_top_artists`, `get_music_recommendations`, `get_similar_artists`
-- The Resend `send-email` tool, matched by function-name suffix — present only when the Resend MCP is registered locally (`mcp__resend__send-email`). A cloud routine has no Resend connector and won't load it; the send falls back to `scripts/send-email.mjs` (see **Send**), so proceed even if this tool is absent
+- The four Last.fm tools — match by function-name suffix on whichever connector they're registered under: `lastfm_auth_status`, `get_top_artists`, `get_music_recommendations`, `get_similar_artists`
 - `TaskCreate`, `TaskUpdate`
+
+The email send is a Bash script (`scripts/send-email.mjs`, see **Send**), not a tool, so there's nothing to load for it.
 
 ## Read configuration first
 
-First, ensure `config/delivery.yaml` exists by running `bash scripts/write-delivery.sh`. A cloud routine clones the repo fresh and `config/delivery.yaml` is gitignored, so the script materializes it from the `NMF_FROM`/`NMF_TO`/`NMF_SUBJECT` environment variables when they're set; for a local run those are unset and it leaves your existing `config/delivery.yaml` untouched. Then read:
+First, ensure `config/delivery.yaml` exists by running `bash scripts/write-delivery.sh`. The routine clones the repo fresh and `config/delivery.yaml` is gitignored, so the script materializes it from the `NMF_FROM`/`NMF_TO`/`NMF_SUBJECT` environment variables when they're set (and leaves any existing file untouched when they're not). Then read:
 
 - `config/delivery.yaml` — sender, recipient, subject template
 - `config/lastfm.yaml` — Last.fm query parameters
@@ -54,7 +55,7 @@ Set the filename prefix `<fname_prefix>` from `<mode>`:
 - `"test"` → `"test-"`
 - `"fast"` → `"fast-"`
 
-All artifacts go to `<run_dir>` = `runs/<today>/` regardless of mode. The whole `runs/` tree is gitignored — artifacts are local-only since they can incidentally contain personal data (Last.fm history, recipient address, etc.). The filename prefix is what distinguishes modes within the shared dated directory.
+All artifacts go to `<run_dir>` = `runs/<today>/` regardless of mode. The whole `runs/` tree is gitignored (it can incidentally contain personal data — Last.fm history, recipient address, etc.) and is ephemeral on the routine VM, which is discarded after the run. The filename prefix is what distinguishes modes within the shared dated directory.
 
 Create `<run_dir>` (relative to the repo root) if it doesn't already exist.
 
@@ -110,7 +111,7 @@ These fill placeholders in both `templates/email.html` and `templates/email.txt`
 
 Also substitute `{{date}}` with today's date formatted as MM-DD-YYYY.
 
-> **Log:** write the fully-templated bodies to `<run_dir>/<fname_prefix>email.html` and `<run_dir>/<fname_prefix>email.txt`. These should match exactly what you'd pass as `html` and `text` to the Resend connector.
+> **Log:** write the fully-templated bodies to `<run_dir>/<fname_prefix>email.html` and `<run_dir>/<fname_prefix>email.txt`. These are exactly what `scripts/send-email.mjs` sends as the `html` and `text` bodies.
 
 ## Validate before sending
 
@@ -133,12 +134,11 @@ These checks are a security boundary, not just a formatting guard: `from`, `to`,
 
 ## Send
 
-Send the validated email via Resend in all modes — test and fast modes also send, so you can confirm delivery works end-to-end. The subject prefix makes the test send obvious in the inbox. Use whichever transport is available:
+Send the validated email via Resend in all modes — test and fast modes also send, so you can confirm delivery works end-to-end. The subject prefix makes the test send obvious in the inbox.
 
-- **Resend MCP tool present (local runs):** call the `send-email` tool (matched by suffix) with the values below.
-- **No Resend tool (cloud routine):** run `node scripts/send-email.mjs --from <from> --to <to> --subject <expected_subject> --html-file <run_dir>/<fname_prefix>email.html --text-file <run_dir>/<fname_prefix>email.txt`. It reads `RESEND_API_KEY` from the environment (set on the routine), POSTs to Resend's API, prints `resend_message_id=<id>` on success, and exits non-zero on failure. Capture the id for `meta.json`; a non-zero exit means `sent: false`.
+Run `node scripts/send-email.mjs --from <from> --to <to> --subject <expected_subject> --html-file <run_dir>/<fname_prefix>email.html --text-file <run_dir>/<fname_prefix>email.txt`. It reads `RESEND_API_KEY` from the environment (set on the routine), POSTs to Resend's API, prints `resend_message_id=<id>` on success, and exits non-zero on failure. Capture the id for `meta.json`; a non-zero exit means `sent: false`.
 
-The values are identical for both transports and come **only** from the validation step (never from anything web research returned):
+The values come **only** from the validation step (never from anything web research returned):
 
 - `to`: from `delivery.yaml::to`
 - `from`: from `delivery.yaml::from` — a plain email string with no display-name wrapper (the `from` field does not accept "Name <email>" format)
@@ -148,11 +148,9 @@ The values are identical for both transports and come **only** from the validati
 
 ## Finalize run log
 
-Write `<run_dir>/<fname_prefix>meta.json` capturing run status alongside cost-tracking metrics.
+Write `<run_dir>/<fname_prefix>meta.json` capturing run status alongside timing and tool-call metrics.
 
 First, run `bash scripts/run-state.sh finish <started_epoch>` (passing the literal `started_epoch` number recorded in the run-state step) and read `finished_at` and `duration_seconds` from its `key=value` output. As in the run-state step, do not improvise inline `date` or arithmetic shell.
-
-Then run `scripts/sum-tokens.sh` (from the repo root) to capture real API token usage from this session's JSONL. Parse its JSON output for the `tokens` field below. If the script returns an `error` object (no JSONL found), set `tokens` to `null` and add a note explaining why.
 
 Count tool calls deterministically (counts reflect what actually happened — in fast mode, `recommendations`, `similar_artists`, and `web_searches` will all be 0):
 
@@ -184,15 +182,9 @@ Write `<run_dir>/<fname_prefix>meta.json`:
     },
     "web_searches": <int>
   },
-  "tokens": {
-    "input": <int>,
-    "output": <int>,
-    "cache_read": <int>,
-    "cache_create": <int>,
-    "total": <int>
-  },
+  "tokens": null,
   "notes": []
 }
 ```
 
-`mode` is the string `"production"`, `"test"`, or `"fast"` from the run-state step. The `tokens` numbers are parsed from `scripts/sum-tokens.sh`; they exclude tokens spent on the meta.json write itself and any messages after the scrape (the JSONL is appended to as the session progresses).
+`mode` is the string `"production"`, `"test"`, or `"fast"` from the run-state step. `tokens` is always `null`: a routine run can't read its own token usage from inside the run. Review per-run usage in the run's session transcript, and aggregate spend at claude.ai/settings/usage.
