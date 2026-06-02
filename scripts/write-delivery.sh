@@ -15,7 +15,14 @@ set -euo pipefail
 
 if [[ -n "${NMF_FROM:-}" && -n "${NMF_TO:-}" && -n "${NMF_SUBJECT:-}" ]]; then
   mkdir -p config
-  printf 'from: %s\nto: %s\nsubject_template: "%s"\n' "$NMF_FROM" "$NMF_TO" "$NMF_SUBJECT" > config/delivery.yaml
+  {
+    printf 'from: %s\nto: %s\nsubject_template: "%s"\n' "$NMF_FROM" "$NMF_TO" "$NMF_SUBJECT"
+    # Optional run-log flag, so env-var installs (not committing delivery.yaml)
+    # can still opt into the "[NMF log]" email. Set NMF_SEND_RUN_LOG=true.
+    if [[ -n "${NMF_SEND_RUN_LOG:-}" ]]; then
+      printf 'send_run_log: %s\n' "$NMF_SEND_RUN_LOG"
+    fi
+  } > config/delivery.yaml
   echo "write-delivery: wrote config/delivery.yaml from NMF_* env vars"
 else
   echo "write-delivery: NMF_* env vars not all set; left config/delivery.yaml as-is"

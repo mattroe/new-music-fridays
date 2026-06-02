@@ -10,7 +10,7 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 2. Searches the web across Pitchfork, Qobuz, Bandcamp Daily, Resident Advisor, and NPR Music — plus genre-specific blogs and label sites — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks)
-5. Sends the email via Resend's REST API and writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email and the run's session transcript are the durable record
+5. Sends the email via Resend's REST API and writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email and the run's session transcript are the durable record (optionally also emails a separate `[NMF log]` copy of the kept/skipped reasoning — see `send_run_log`)
 
 ## Run your own
 
@@ -37,6 +37,7 @@ Edit `config/delivery.yaml`:
 - `from` — a Resend-verified address (e.g. `digest@your-domain.example`)
 - `to` — wherever you want the email delivered
 - `subject_template` — optional; `{date}` is replaced with `MM-DD-YYYY`
+- `send_run_log` — optional; set `true` to also receive a separate `[NMF log]` email each run with the kept/skipped candidate reasoning (handy for tuning your sources over time). Off by default, so a fresh install gets just the digest.
 
 Optional tuning:
 
@@ -51,7 +52,7 @@ Optional tuning:
 
 2. **Get your repo + delivery config onto GitHub.** The routine clones a repo each run, and `config/delivery.yaml` is gitignored — so the clone won't have your delivery values unless you provide them. Either:
    - commit `config/delivery.yaml` to a **private** repo (it's gitignored by default, so force it in: `git add -f config/delivery.yaml`), **or**
-   - keep it out of git: set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` as routine **environment variables** (step 3). At the start of each run `SKILL.md` calls `scripts/write-delivery.sh`, which writes `config/delivery.yaml` from them — done *during* the run, in the repo root. (An environment **setup script** can't do this: it runs before the repo is cloned, so there's no `config/` to write into.)
+   - keep it out of git: set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` (and optionally `NMF_SEND_RUN_LOG=true`) as routine **environment variables** (step 3). At the start of each run `SKILL.md` calls `scripts/write-delivery.sh`, which writes `config/delivery.yaml` from them — done *during* the run, in the repo root. (An environment **setup script** can't do this: it runs before the repo is cloned, so there's no `config/` to write into.)
 
 3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) (or `/schedule` from the CLI):
    - **Repository:** the repo from step 2.
