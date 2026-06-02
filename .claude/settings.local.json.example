@@ -9,6 +9,7 @@
       "TaskCreate",
       "TaskUpdate",
       "Bash(bash scripts/run-state.sh:*)",
+      "Bash(bash scripts/write-delivery.sh:*)",
       "Bash(scripts/sum-tokens.sh:*)",
       "Bash(node scripts/send-email.mjs:*)",
       "Bash(mkdir:*)",
