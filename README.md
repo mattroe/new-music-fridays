@@ -24,6 +24,65 @@ Clone the repo and run your own weekly digest. It runs as a cloud routine on Ant
 - Your GitHub account connected to Claude Code (a routine clones a repo each run).
 - A Resend **API key** — there's no Resend connector, so the routine sends via Resend's REST API (configured below).
 
+### Bootstrap with Claude Code (recommended)
+
+This repo assumes you have Claude Code — so let it drive the setup. Clone the repo (or your fork), open Claude Code in the repo root, and paste the prompt below. It runs a local preflight, writes and validates `config/delivery.yaml`, sorts out the GitHub side, and then hands you a checklist — with your values already filled in — for the few steps that only exist in the browser (the Last.fm connector OAuth, your Resend sender, and creating the routine). The `scripts/bootstrap.sh` helper it calls is read-only: `preflight` reports readiness and `validate` sanity-checks your delivery config.
+
+```text
+Set up the "new-music-fridays" weekly digest for me as an Anthropic-hosted Claude
+Code routine. Do everything that can be done locally, and prepare exact values for
+the steps I can only finish in the browser. Skim README.md first (and SKILL.md if
+you need detail on run modes or env vars).
+
+1. Run `bash scripts/bootstrap.sh preflight` and walk me through whatever it flags
+   (Node, git, gh, repo visibility, delivery config).
+
+2. Delivery config. Ask me for my "from" address (a Resend-verified sender — a
+   plain address, no "Name <email>" wrapper), my "to" address, and the subject
+   line (default `New Music Friday - {date}`, where `{date}` becomes MM-DD-YYYY).
+   Copy `config/delivery.yaml.example` to `config/delivery.yaml` if it's missing,
+   write my answers in, then run `bash scripts/bootstrap.sh validate` and fix
+   anything it reports. Never put my Resend API key in this file or anywhere in
+   the repo.
+
+3. GitHub. The routine clones a repo each run and `config/delivery.yaml` is
+   gitignored, so settle how the clone will get my delivery values:
+   - Recommended — commit it to a PRIVATE repo. If origin isn't already my own
+     private repo, help me create or point to one, then `git add -f
+     config/delivery.yaml`, commit, and push (confirm with me before pushing).
+   - Alternative — keep it out of git and set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT`
+     as routine env vars instead (SKILL.md writes delivery.yaml from them at run
+     start). If I pick this, don't commit delivery.yaml; just hold the three
+     values for the next step.
+   Never push my delivery.yaml to a public repo, and don't push without asking.
+
+4. Browser-only handoff. These can't be scripted — print them as a checklist with
+   my values filled in:
+   - Last.fm connector: add the remote MCP `https://lastfm-mcp.com/mcp` at
+     claude.ai/customize/connectors and complete its OAuth once.
+   - Resend: confirm a verified sender for my "from" address and a Sending-access
+     API key.
+   - Create the routine at claude.ai/code/routines —
+       Repository: <my repo from step 3>
+       Prompt:     Follow the instructions in SKILL.md at the repository root
+                   exactly. It is the runtime prompt for this routine.
+       Model:      Opus
+       Schedule:   weekly, Friday morning (a time still on Friday in UTC)
+       Connectors: enable Last.fm
+       Env vars:   RESEND_API_KEY (plus NMF_FROM / NMF_TO / NMF_SUBJECT if I chose
+                   the env-var path in step 3)
+       Setup script: leave empty
+   - Network access: routine environment -> Network access -> Custom, add
+     `api.resend.com`, and check "Also include default list of common package
+     managers" (without it the send fails with a proxy 403).
+   - Offer to also prep a second "new-music-fridays (test)" routine — same repo,
+     no schedule, `NMF_FAST=1` — for safe smoke tests.
+
+End with a summary of what's done and the exact list of clicks I still owe.
+```
+
+Prefer to set it up by hand — or want to see exactly what the bootstrap does? The next two sections are the manual equivalent.
+
 ### Configure the repo
 
 ```bash
@@ -120,6 +179,7 @@ Forward-looking work lives in [open issues](https://github.com/mattroe/new-music
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
 - `scripts/run-state.sh` — emits run-state values (date, run mode, timestamps, duration) for `SKILL.md`
 - `scripts/write-delivery.sh` — materializes `config/delivery.yaml` from `NMF_*` env vars at run start
+- `scripts/bootstrap.sh` — first-time setup helper: `preflight` reports toolchain/repo/config readiness, `validate` sanity-checks `config/delivery.yaml` (used by the bootstrap prompt above)
 - `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html`, `test-email.html`, `fast-email.html`). Gitignored and ephemeral — not persisted after a cloud run.
 
 ## Development
