@@ -25,7 +25,7 @@ Edits are picked up on the next run with no build step — commit and push, and 
 - **Behavior should remain stable across refactors.** When changing `SKILL.md`, configs, or templates, the email's structure and recipients should not silently drift. Validation steps in the prompt catch the obvious cases (`from`/`to`/`subject`, template-fill, the citation allowlist, and output shape); the rest comes down to careful review.
 - **The web-research and send steps are a prompt-injection boundary.** `SKILL.md` treats `WebSearch`/`WebFetch` output as untrusted data and pins the email's `from`/`to`/`subject` to `config/delivery.yaml`, aborting on mismatch. This agent reads untrusted web pages *and* can send mail with broad `WebFetch` — keep both guards (the "Trust boundary" note in research and the security-boundary framing in "Validate before sending"); don't soften them into mere formatting checks.
 - **Configuration is data.** Sources, delivery details, and Last.fm parameters live in `config/*` and `templates/*`, not inlined in `SKILL.md`. If you find yourself adding prose to `SKILL.md` that's really a setting, extract it. Sources are split by **role**: `config/release-sources.yaml` is the discovery sweep (tier-1 always, tier-2 genre-routed); `config/review-sources.yaml` is the endorsement-signal allowlist that decorates picks and gates the Second-Look section.
-- **Model and effort are pinned in `SKILL.md` frontmatter** (`model: opus`, `effort: max`) to make the choice visible to anyone reading the repo. Revisit after cost data accumulates (see [#8](https://github.com/mattroe/new-music-fridays/issues/8)). Cloud routines ignore the frontmatter — the model is chosen on the routine, so treat the frontmatter as the documented intent.
+- **Model and effort are pinned in `SKILL.md` frontmatter** (`model: opus`, `effort: max`) to make the choice visible to anyone reading the repo. Revisit with the one-week model A/B in [#8](https://github.com/mattroe/new-music-fridays/issues/8) — read cost from the run's session transcript and claude.ai/settings/usage, since `meta.json.tokens` is `null`. Cloud routines ignore the frontmatter — the model is chosen on the routine, so treat the frontmatter as the documented intent.
 
 ## Gotchas worth knowing
 
@@ -36,7 +36,15 @@ Edits are picked up on the next run with no build step — commit and push, and 
 
 ## How to test changes
 
-The routine runs in the cloud, so test there. The run mode is driven by the `NMF_FAST` / `NMF_TEST` env vars (see `SKILL.md`'s "Set up run state"):
+Two layers. Deterministic checks run in CI (and locally); the routine itself runs in the cloud.
+
+**Deterministic checks (CI + local).** `.github/workflows/ci.yml` gates every PR and push to `main` with a contract linter (`scripts/check-contract.mjs` — asserts `SKILL.md` still matches the scripts, configs, and templates it references, and that `send-email.mjs` stays zero-dependency with its hardcoded Resend endpoint) and unit tests (`node --test test/*.test.mjs` — exit codes plus the exact Resend payload for the send script, and the run-state/write-delivery scripts). No cloud, connector, or Resend key needed — run them locally before pushing:
+
+    node scripts/check-contract.mjs && node --test test/*.test.mjs
+
+They catch mechanical drift (a renamed script, a dropped config key, an unfilled template placeholder), not inference quality or the live integration — that's the cloud runs.
+
+**Cloud runs.** The routine runs in the cloud, so test there. The run mode is driven by the `NMF_FAST` / `NMF_TEST` env vars (see `SKILL.md`'s "Set up run state"):
 
 1. **Fast run** — set `NMF_FAST=1` on a routine and use **Run now**: trimmed Last.fm (one call) + stubbed candidates + `[TEST][FAST]` subject. ~2–5 min. Sends a real (marked) email. Use for plumbing checks (template fill, validation, Resend send).
 2. **Test run** — set `NMF_TEST=1` instead: full Last.fm + web research + `[TEST]` subject. Same wall time as a real run (5–15 min). Use when changing research logic or rubric.
