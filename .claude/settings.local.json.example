@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "WebSearch",
+      "WebFetch",
+      "TaskCreate",
+      "TaskUpdate",
+      "Bash(bash scripts/run-state.sh:*)",
+      "Bash(scripts/sum-tokens.sh:*)",
+      "Bash(node scripts/send-email.mjs:*)",
+      "Bash(mkdir:*)",
+      "mcp__lastfm__lastfm_auth_status",
+      "mcp__lastfm__get_top_artists",
+      "mcp__lastfm__get_music_recommendations",
+      "mcp__lastfm__get_similar_artists",
+      "mcp__resend__send-email"
+    ]
+  }
+}
