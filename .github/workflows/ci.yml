@@ -1,0 +1,41 @@
+name: CI
+
+# Merge gate for the cloud routine's mechanical contract. It cannot run the
+# routine itself (that needs the Last.fm connector, RESEND_API_KEY, and the
+# cloud egress allowlist), but it makes committed code that would break the
+# routine fail here instead of on Friday's unattended run.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Contract linter
+        run: node scripts/check-contract.mjs
+
+      - name: JS syntax
+        run: |
+          node --check scripts/send-email.mjs
+          node --check scripts/check-contract.mjs
+
+      - name: Shell syntax
+        run: for f in scripts/*.sh; do bash -n "$f"; done
+
+      - name: Tests
+        run: node --test test/*.test.mjs
