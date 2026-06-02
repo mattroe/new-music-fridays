@@ -9,11 +9,3 @@ to: you@somewhere.example
 
 # {date} is substituted with today's date in MM-DD-YYYY format.
 subject_template: "New Music Friday - {date}"
-
-# Optional. Set to true to also receive a separate "run log" email each run —
-# the kept/skipped candidate reasoning behind that week's digest — using the
-# same sender/recipient, with subject "[NMF log] {date}". Off by default so a
-# fresh install gets just the digest. The VM is discarded after each run, so
-# this email is the durable record of the run's reasoning; it's handy for
-# tuning config/release-sources.yaml and config/review-sources.yaml over time.
-send_run_log: false
