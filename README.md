@@ -20,10 +20,10 @@ Clone the repo and run your own weekly digest. It runs as a cloud routine on Ant
 ### Prerequisites
 
 - A Last.fm account.
-- A way to send the email. The default uses [Resend](https://resend.com/); either send from a verified custom domain (one-time DNS setup, can take a while) or from Resend's sandbox sender for testing. Any transactional-email integration works in principle — see [Other delivery options](#other-delivery-options).
+- A way to deliver the digest. The default emails it via [Resend](https://resend.com/) — either from a verified custom domain (one-time DNS setup, can take a while) or from Resend's sandbox sender for testing. But delivery is just the run's last step: any transactional-email provider, a push notification, or no notification at all (keep the rendered file) works too — see [Other delivery options](#other-delivery-options).
 - A Claude Pro/Max subscription (routines run on Anthropic's infrastructure).
 - Your GitHub account connected to Claude Code (a routine clones a repo each run).
-- A Resend **API key** — there's no Resend connector, so the routine sends via Resend's REST API (configured below).
+- A Resend **API key** — *only if you're using the default Resend delivery.* There's no Resend connector, so the routine sends via Resend's REST API (configured below). Swap in a different delivery method or skip notifications entirely (see [Other delivery options](#other-delivery-options)) and you won't need one.
 
 ### Bootstrap with Claude Code (recommended)
 
@@ -174,9 +174,21 @@ These catch mechanical breakage (a renamed script, a dropped config key, an unfi
 
 ## Other delivery options
 
-Resend is one option — swap in any transactional-email provider (Postmark, Mailgun, SendGrid, etc.) by editing the "Send" section of `SKILL.md` and the endpoint and payload in `scripts/send-email.mjs`. The `html`, `text`, `from`, `to`, and `subject` all still come from `config/delivery.yaml` and `templates/`.
+Email is just the run's last step. The digest is fully rendered (`html` + `text`, from `config/delivery.yaml` and `templates/`) *before* anything is sent, so how it reaches you is a localized swap in the **Send** section of `SKILL.md` — it doesn't have to be email at all. Fork the repo and change that step:
 
-If you don't want any email at all, replace the Send step in `SKILL.md` with one that skips sending — the rendered digest is still written under `runs/<today>/` during the run and is visible in the session transcript.
+- **A different email provider.** Swap Resend for any transactional-email service (Postmark, Mailgun, SendGrid, etc.) by editing the endpoint and payload in `scripts/send-email.mjs`. Drop `RESEND_API_KEY` and use that provider's key instead.
+- **A push notification.** Point the Send step at a small script that POSTs to a push service (Pushover, ntfy, Telegram, a phone webhook, etc.) — typically the digest title plus a link back to the run. Remove the Resend pieces.
+- **No notification — just the file.** Skip the send entirely. The rendered digest is still written under `runs/<today>/` during the run and is visible in the session transcript. To turn that into a real downloadable file, see below.
+
+### Getting the digest as a downloadable file
+
+There's no "download this file" button on a cloud routine session, and the run's VM is discarded when it finishes — so anything under `runs/<today>/` is gone, and only **text** survives in the session transcript. The reliable way to get a durable, downloadable artifact is the same mechanism the run history already uses: **commit it to a Git repo.** A file committed to GitHub is permanent and downloadable (raw link, `git clone`, or the UI's download button).
+
+The easy version, if you've already set up the private state repo for [Durable run history](#durable-run-history): have the Send step also drop the rendered **`email.html`/`email.txt`** (or a Markdown digest) into that repo's working tree and commit-and-push it to `main`, reusing the `scripts/history.sh` git plumbing. No new secret or network-access change — GitHub auth and the dedicated git proxy already reach it. (The **code** repo only accepts `claude/`-prefixed pushes by default, so a digest committed there arrives as a branch/PR rather than on `main`; the state repo's "Allow unrestricted branch pushes" setting is what makes a clean "latest digest on `main`" possible.)
+
+Persist the **rendered digest only** — not the whole `runs/<today>/` tree. Even though the state repo is private, it's deliberately scoped to distilled, redacted records: `SKILL.md`'s persist step never stores the raw Last.fm responses, listening profile, play counts, or recipient address (it's why `runs/` is gitignored). The rendered email bodies carry none of that, so they're safe to commit; the full run directory is not. Keeping raw listening data out of durable storage bounds the blast radius if the private repo's access is ever widened or leaked.
+
+Zero-setup fallback: open the run from the routines list and copy the rendered bodies out of the transcript's **Log** step. Text-only and manual, but it needs nothing beyond the run itself.
 
 ## Customizing for your taste
 
