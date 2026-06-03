@@ -24,6 +24,30 @@ similar_artists:
   top_n: 20
   limit: 50
 
+# Implicit feedback (issue #25): after the explicit feedback read, probe Last.fm
+# for whether prior picks actually got played, and fold the result into the same
+# curation steer. The lookback set comes from the #17 history corpus (no new
+# store) — recent picks read back; each distinct release is probed with one
+# get_album_info(artist, album, username) call, which returns the user's album
+# playcount and the album's track count. The ratio userplaycount / track_count
+# is the signal. SKILL.md's "Incorporate play-back signal" step reads these —
+# keep them in sync.
+#   - records: how many recent production history records to look back over.
+#   - max_releases: cap on distinct releases probed (one get_album_info each),
+#     so the extra calls stay modest vs. the listening fan-out. Picks are
+#     prioritized top_5 > section_b (discovery) > section_a > kept candidates.
+#   - finished_ratio: ratio at/above which the album counts as "listened
+#     through" (a positive signal). BELOW it, a non-zero playcount is a
+#     partial/unfinished listen — they sampled it and stopped — and is NOT
+#     treated as positive (see the #25 comment).
+#   - repeat_ratio: ratio at/above which the release counts as a repeated /
+#     multiple-listen play — the strongest positive signal.
+playback_lookback:
+  records: 4
+  max_releases: 12
+  finished_ratio: 0.8
+  repeat_ratio: 1.8
+
 # Test-mode breadth trim (NMF_TEST=1). The on-merge smoke test runs the full
 # path on the production model, but a few reads dominate wall-clock. In test mode
 # SKILL.md uses these reduced values; production ignores this block.
@@ -35,6 +59,10 @@ similar_artists:
 #     single Last.fm payload. Test mode drops 12month (light context) and caps
 #     overall at 150, keeping the genre lean (1month/3month) and the recognition
 #     net intact while cutting the read.
+#   - playback_lookback: fewer records and a smaller probe cap so the implicit
+#     feedback path is still exercised with fewer get_album_info calls. The ratio
+#     thresholds are not duplicated here — SKILL.md always reads finished_ratio /
+#     repeat_ratio from the top-level block.
 test_mode:
   top_artists:
     - period: 1month
@@ -46,3 +74,6 @@ test_mode:
   similar_artists:
     top_n: 5
     limit: 50
+  playback_lookback:
+    records: 2
+    max_releases: 4
