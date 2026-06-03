@@ -13,7 +13,7 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 2. Searches the web in two passes — discovery across the tier-1 and genre-routed tier-2 sources in `config/release-sources.yaml`, then an endorsement check against `config/review-sources.yaml` — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks, and Worth a Second Look) with endorsement citations where picks earned them
-5. Sends the email via Resend's REST API and writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email and the run's session transcript are the durable record
+5. Delivers the digest — by default emails it via Resend's REST API; set `method: none` in `config/delivery.yaml` to skip the send and rely on the downloadable file published to your state repo instead (see [Other delivery options](docs/delivery.md)). Either way it writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email (or published digest) and the run's session transcript are the durable record
 6. Appends a distilled, redacted record of the run (kept/skipped candidates and the final picks — never raw listening data) to an append-only `history.jsonl` in a **separate private state repo**, so picks survive the discarded VM and can inform later weeks (de-duplicating Worth a Second Look, and an implicit "did I actually play it?" lookback that steers curation toward the past picks you played). Production runs only; see [Durable run history](docs/setup.md#durable-run-history)
 
 ## Documentation

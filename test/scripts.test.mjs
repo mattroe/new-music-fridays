@@ -26,7 +26,7 @@ const PHASE_TIMING = join(ROOT, "scripts/phase-timing.sh");
 // a known run mode regardless of the developer's shell.
 function baseEnv(overrides = {}) {
   const env = { ...process.env };
-  for (const k of ["NMF_TEST", "NMF_FROM", "NMF_TO", "NMF_SUBJECT", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE", "NMF_FEEDBACK_FILE"]) delete env[k];
+  for (const k of ["NMF_TEST", "NMF_FROM", "NMF_TO", "NMF_SUBJECT", "NMF_DELIVERY", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE", "NMF_FEEDBACK_FILE"]) delete env[k];
   return { ...env, ...overrides };
 }
 
@@ -163,6 +163,31 @@ test("write-delivery writes config/delivery.yaml when all NMF_* are set", async 
   assert.match(written, /^from: a@b\.co$/m);
   assert.match(written, /^to: c@d\.co$/m);
   assert.match(written, /^subject_template: "New Music - \{date\}"$/m);
+  // method defaults to resend when NMF_DELIVERY is unset.
+  assert.match(written, /^method: resend$/m);
+});
+
+test("write-delivery writes method: none when NMF_DELIVERY=none", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-wd-"));
+  const { code, stdout } = await runBash(WRITE_DELIVERY, [], {
+    cwd: dir,
+    env: baseEnv({ NMF_FROM: "a@b.co", NMF_TO: "c@d.co", NMF_SUBJECT: "x {date}", NMF_DELIVERY: "none" }),
+  });
+  assert.equal(code, 0);
+  assert.match(stdout, /method: none/);
+  assert.match(readFileSync(join(dir, "config/delivery.yaml"), "utf8"), /^method: none$/m);
+});
+
+test("write-delivery rejects an unknown NMF_DELIVERY value", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-wd-"));
+  const { code, stderr } = await runBash(WRITE_DELIVERY, [], {
+    cwd: dir,
+    env: baseEnv({ NMF_FROM: "a@b.co", NMF_TO: "c@d.co", NMF_SUBJECT: "x {date}", NMF_DELIVERY: "bogus" }),
+  });
+  assert.notEqual(code, 0);
+  assert.match(stderr, /must be 'resend' or 'none'/);
+  // It must not leave a half-written config behind.
+  assert.equal(existsSync(join(dir, "config/delivery.yaml")), false);
 });
 
 test("write-delivery leaves an existing file untouched when NMF_* are unset", async () => {

@@ -9,3 +9,11 @@ to: you@somewhere.example
 
 # {date} is substituted with today's date in MM-DD-YYYY format.
 subject_template: "New Music Friday - {date}"
+
+# How the digest reaches you. Optional; defaults to "resend" when omitted.
+#   resend — email it via Resend's REST API. Needs RESEND_API_KEY on the routine
+#            and `api.resend.com` on the network allowlist (see docs/setup.md).
+#   none   — skip the send entirely. The digest is delivered only as a
+#            downloadable file committed to your private state repo each run, so
+#            "none" requires a state repo wired up (see docs/delivery.md).
+method: resend
