@@ -2,7 +2,7 @@
 
 Clone the repo and run your own weekly digest. It runs as a cloud routine on Anthropic-managed infrastructure on a schedule, so the Friday email fires whether or not your computer is on, and it stays on your Claude subscription. A full run takes about 5–15 minutes.
 
-**You don't need the Claude desktop app.** Claude Code in your terminal does all the local work (clone, preflight, `config/delivery.yaml`, git), and the cloud steps live on **claude.ai in any browser** — the desktop app only wraps the same flows. The few browser steps below (the Last.fm connector OAuth, the routine's environment settings, your Resend dashboard) can't be driven from the CLI; everything else can. You can even scaffold the routine itself from the terminal with `/schedule` — see [Set up the routine](#set-up-the-routine).
+**You don't need the Claude desktop app — but you're welcome to use it.** Claude Code does all the local work (clone, preflight, `config/delivery.yaml`, git) in your terminal *or* the desktop app, and the cloud steps are claude.ai pages you can open in a browser *or* the desktop app — so neither is required, and either works for both halves. The handful of steps below that aren't scriptable — the Last.fm connector OAuth and the routine's environment settings (both on claude.ai, browser or desktop app), plus your Resend dashboard if you email via Resend (a separate site) — are the only manual pieces; everything else Claude Code can do for you. You can even scaffold the routine itself with `/schedule` — see [Set up the routine](#set-up-the-routine).
 
 ## Prerequisites
 
@@ -141,7 +141,15 @@ Optional tuning:
 
 ## Durable run history
 
-Each production run distils what it considered into one JSON line — kept/skipped candidates, the genre profile, and the final picks — and appends it to an append-only `history.jsonl`. Because the routine VM is discarded after every run, this can't live on disk and must not live in the shared code repo (it's per-user and private). Instead it lives in a **separate private state repo** that the routine clones alongside the code repo.
+**What the state repo is.** A single **private repo, separate from this shared code repo**, that holds everything per-user and durable a run produces — the things that can't live on the routine's throwaway VM *or* in the public code repo. It carries three things, and setting it up once unlocks all of them:
+
+- **`history.jsonl`** — the cross-week run history (kept/skipped candidates, genre profile, final picks), so each run can learn from the last.
+- **`digests/<date>/`** — the rendered digest from every production run, committed as a durable, downloadable file. This is the **sole delivery** under `method: none`.
+- **`feedback.md`** — your private taste reactions that steer future picks (see [Providing feedback](customizing.md#providing-feedback)).
+
+The routine clones it alongside the code repo at the start of each run. The rest of this section sets it up.
+
+Each production run distils what it considered into one JSON line — kept/skipped candidates, the genre profile, and the final picks — and appends it to an append-only `history.jsonl`. Because the routine VM is discarded after every run, this can't live on disk and must not live in the shared code repo (it's per-user and private). Instead it lives in the separate private state repo described above.
 
 This step is **optional and best-effort** under `method: resend`: if you don't set up a state repo, runs still send normally — they just don't keep history. Set it up when you want the cross-week features that build on it (today: de-duplicating Worth a Second Look; next: the implicit feedback lookback in [#25](https://github.com/mattroe/new-music-fridays/issues/25)). Under `method: none` it's **required** — the published digest is your only delivery, so without a state repo the run produces nothing durable (the digest survives only in the session transcript).
 
@@ -167,4 +175,4 @@ To enable it:
 
 No extra secret or network-access change is needed: the routine's existing GitHub auth reaches any repo your account can see, and git traffic uses the dedicated GitHub proxy. `SKILL.md` reads the record back as untrusted data and refuses to persist anything but production runs, so test runs never pollute the corpus.
 
-The same state repo also holds your published digests (`digests/<date>/`) and your **feedback file** (`feedback.md`) — the personal taste reactions that steer the picks (see [Providing feedback](customizing.md#providing-feedback)). Feedback lives here, not in the public code repo, so your reactions stay private; copy `config/feedback.example.md` into the state repo as `feedback.md` when you want to start steering. Wiring up the state repo is what unlocks all three.
+Beyond history, the same repo holds your published digests (`digests/<date>/`) and your **feedback file** (`feedback.md`), as described at the top of this section. To start steering the picks, copy `config/feedback.example.md` into the state repo as `feedback.md` — it stays here, not in the public code repo, so your reactions remain private (see [Providing feedback](customizing.md#providing-feedback)).

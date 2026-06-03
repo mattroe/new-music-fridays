@@ -1,9 +1,25 @@
 # Other delivery options
 
-Email is just the run's last step. The digest is fully rendered (`html` + `text`, from `config/delivery.yaml` and `templates/`) *before* anything is sent, so how it reaches you is the run's *last* step, not its purpose.
+How the digest reaches you is the run's *last* step, not its purpose — it's fully rendered (`html` + `text`, from `config/delivery.yaml` and `templates/`) *before* anything is sent. Two delivery methods are built in and switch with one config field — `method` in `config/delivery.yaml` (or `NMF_DELIVERY` as a routine env var). Past those, a fork can point the send anywhere.
 
-- **No notification — just the file.** Set `method: none` in `config/delivery.yaml` (or `NMF_DELIVERY=none` as a routine env var). No fork, no code change: `SKILL.md` skips the send entirely and the run records `sent: null`. The rendered digest still reaches you as a real downloadable file, because every production run also commits it to your private state repo — see [Getting the digest as a downloadable file](#getting-the-digest-as-a-downloadable-file) below. **This path needs a state repo wired up** ([Durable run history](setup.md#durable-run-history)); without one the digest survives only in the run's session transcript. With `method: none` you don't need a Resend API key, the `api.resend.com` allowlist entry, or a verified sender.
-- **A different email provider.** Keep `method: resend` (the default) and swap Resend for any transactional-email service (Postmark, Mailgun, SendGrid, etc.) by editing the endpoint and payload in `scripts/send-email.mjs`. Drop `RESEND_API_KEY` and use that provider's key instead. (Editing the send script is a fork; the `method` switch only toggles send-vs-no-send.)
+## The two built-in methods
+
+|  | `method: resend` (default) | `method: none` |
+| --- | --- | --- |
+| **How you get the digest** | Email in your inbox | A downloadable file in your private state repo (`digests/<date>/`) |
+| **What it needs** | A Resend account + Sending-access API key + a verified sender (or Resend's sandbox sender, which skips DNS) + `api.resend.com` on the routine's network allowlist | The **state repo** set up and wired onto the routine — no Resend at all |
+| **State repo** | Optional (only if you want durable run history) | **Required** — it's the only place the digest lands |
+| **`from` / `to`** | Real send arguments; `from` must be a Resend-verified plain address | Plain display text in the rendered digest; no verification needed |
+
+Neither is simply "less setup" — they trade one dependency (Resend) for another (the state repo), so pick on what you want: an email in your inbox, or a file you pull from a private repo. One shortcut: if you're setting up [durable run history](setup.md#durable-run-history) anyway, the state repo already exists, so `method: none` adds nothing and lets you skip Resend entirely.
+
+Under `method: none`, `SKILL.md` skips the send step (the run records `sent: null`) and the digest reaches you only through the file published to the state repo — see [Getting the digest as a downloadable file](#getting-the-digest-as-a-downloadable-file) below. Without a state repo wired up, that file has nowhere to land and the digest survives only in the run's session transcript.
+
+## Forking the send step
+
+Past the two built-in methods, the **Send** section of `SKILL.md` is a localized swap — fork the repo and change that one step:
+
+- **A different email provider.** Keep `method: resend` and swap Resend for any transactional-email service (Postmark, Mailgun, SendGrid, etc.) by editing the endpoint and payload in `scripts/send-email.mjs`. Drop `RESEND_API_KEY` and use that provider's key instead.
 - **A push notification.** Point the Send step at a small script that POSTs to a push service (Pushover, ntfy, Telegram, a phone webhook, etc.) — typically the digest title plus a link back to the run. Remove the Resend pieces.
 
 ## Getting the digest as a downloadable file
