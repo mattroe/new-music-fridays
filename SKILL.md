@@ -115,7 +115,7 @@ Record this summary in `candidates.md` alongside the derived genre profile, and 
 
 **In test or production mode**, do the full research in two passes.
 
-First derive a **genre profile**: from the top-artist charts, recommendations, and similar-artist fan-out, infer the lowercase genre tags this week's listening leans toward (e.g. `folk`, `americana`, `jazz`, `experimental`, `electronic`, `hip-hop`, `indie`). There is no separate genre feed — this inference *is* the routing signal, so record it in `candidates.md`.
+First derive a **genre profile**: from the top-artist charts, recommendations, and similar-artist fan-out, infer the lowercase genre tags this week's listening leans toward (e.g. `folk`, `americana`, `jazz`, `experimental`, `electronic`, `hip-hop`, `indie`). **Weight by recency:** the `1month` and `3month` charts drive the lean, `12month` is light medium-term context, and the wide `overall` chart is **excluded from the genre lean** — it exists as the all-time *exclusion* net (see below), and its breadth would otherwise drown the recency signal. There is no separate genre feed — this inference *is* the routing signal, so record it in `candidates.md`.
 
 Let the feedback working summary from *Incorporate feedback* bias this search: weight scenes, labels, and genres adjacent to the *more-of/loved* set, and steer away from the *less-of/avoid* set. This shapes *what you search for* — it does not hard-filter results, so keep discovering broadly.
 
@@ -126,7 +126,7 @@ Let the feedback working summary from *Incorporate feedback* bias this search: w
 - Honor each source's `search_scope` when present (e.g. scope Pitchfork to `site:pitchfork.com` — the whole site, not just `/best-new-music`; general aggregator queries return poor results for editorial coverage).
 - You may also draw on label sites relevant to that week's releases.
 
-For every candidate, record the `source` it came from (a `release-sources.yaml` `name`) and that source's `tier`. **Reject any candidate whose release date is on or before the prior Friday** — those belong to last week's NMF. Cross-reference everything against the listening data AND the `get_music_recommendations` output before keeping it.
+For every candidate, record the `source` it came from (a `release-sources.yaml` `name`) and that source's `tier`. **Reject any candidate whose release date is on or before the prior Friday** — those belong to last week's NMF. Cross-reference everything against the listening data AND the `get_music_recommendations` output before keeping it. The wide `overall` chart is the all-time **recognition** net here — an artist appearing anywhere in it is already *known* to me, so a new release of theirs belongs in `{{section_a}}` (yes, even a dormant favorite I haven't played in years — surfacing those is the point of the wide sweep), never misfiled as a `{{section_b}}` discovery.
 
 **Pass 2 — endorsement check.** For each *kept* candidate, run ~1 targeted search against the `review-sources.yaml` signals (e.g. `"<album>" site:pitchfork.com`) to see whether it earned any endorsement. Record matches as an `endorsements` list on the candidate, each formatted via that source's `citation_formats` (fill `{score}` from the source; never invent one). No match is the common case — leave `endorsements` empty rather than stretching. Budget ~6 searches total (≈1 per kept candidate).
 
