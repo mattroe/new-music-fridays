@@ -3,20 +3,26 @@
 #
 # Why this exists: the setup that CAN be automated locally is deterministic —
 # checking the toolchain, judging where config/delivery.yaml may safely live,
-# and sanity-checking it before you wire up the routine. Per repo convention
-# (see CLAUDE.md), that deterministic logic belongs in a script, not in prose the
-# bootstrap prompt has to reinvent each run. The browser-only steps (Last.fm
-# connector OAuth, the Resend account/DNS, creating the routine) can't be
-# scripted — the bootstrap prompt in docs/setup.md hands those off with exact values.
+# sanity-checking it, and standing up the private state repo — before you wire up
+# the routine. Per repo convention (see CLAUDE.md), that deterministic logic
+# belongs in a script, not in prose the bootstrap prompt has to reinvent each run.
+# The genuinely browser-only steps (Last.fm connector OAuth, the Resend
+# account/DNS, the routine's env vars + network-access allowlist, and the routine
+# settings) can't be scripted — the bootstrap prompt in docs/setup.md hands those
+# off with exact values. Everything else should be a command, not a manual click.
 #
 # Usage:
 #   bash scripts/bootstrap.sh preflight   # report toolchain + repo + config readiness
 #   bash scripts/bootstrap.sh validate    # sanity-check config/delivery.yaml; exit 1 on problems
+#   bash scripts/bootstrap.sh state-repo [name]  # create + seed the private state repo (default: new-music-fridays-state)
 #
-# Both subcommands are read-only. preflight is a report and never fails; validate
-# exits non-zero so the bootstrap prompt (or CI) can gate on it. This is a
-# setup-time aid distinct from SKILL.md's pre-send validation, which checks the
-# rendered email against these values at send time.
+# preflight and validate are read-only: preflight is a report and never fails;
+# validate exits non-zero so the bootstrap prompt (or CI) can gate on it. state-repo
+# is the one subcommand that writes — it creates a PRIVATE GitHub repo and seeds an
+# empty history.jsonl, idempotently (a no-op if the repo already exists), so the
+# "Durable run history" setup is one command instead of a manual gh/git sequence.
+# This is a setup-time aid distinct from SKILL.md's pre-send validation, which
+# checks the rendered email against these values at send time.
 
 set -euo pipefail
 
@@ -145,11 +151,67 @@ validate() {
   return 1
 }
 
+# Create + seed the private state repo that holds per-run history (issue #17),
+# published digests (#27), and the feedback file (#35). This is the one piece of
+# "Durable run history" setup that is pure, deterministic plumbing — so it's a
+# command, not a manual gh/git sequence the docs make you copy by hand.
+# Idempotent: if the repo already exists it's left untouched, and history.jsonl is
+# only seeded when absent. What it CANNOT do (routine settings, not GitHub ones):
+# add the repo as a second repo on the routine and enable unrestricted branch
+# pushes — those stay a one-time browser step, printed at the end.
+state_repo() {
+  local name="${1:-new-music-fridays-state}"
+  command -v gh >/dev/null 2>&1 || { echo "state-repo: needs the GitHub CLI (https://cli.github.com) — install it, then 'gh auth login'." >&2; return 1; }
+  gh auth status >/dev/null 2>&1   || { echo "state-repo: gh CLI is not authenticated — run 'gh auth login' first." >&2; return 1; }
+  command -v git >/dev/null 2>&1   || { echo "state-repo: git not found." >&2; return 1; }
+
+  local owner slug
+  owner="$(gh api user -q .login 2>/dev/null || true)"
+  [[ -z "$owner" ]] && { echo "state-repo: couldn't determine your GitHub login from gh." >&2; return 1; }
+  slug="$owner/$name"
+
+  if gh repo view "$slug" >/dev/null 2>&1; then
+    ok "$slug already exists — leaving it untouched"
+  else
+    gh repo create "$slug" --private \
+      --description "Private per-run state for new-music-fridays (history, digests, feedback)" >/dev/null
+    ok "created private repo $slug"
+  fi
+
+  # Seed an empty history.jsonl on the default branch only if the repo has none.
+  if gh api "repos/$slug/contents/history.jsonl" >/dev/null 2>&1; then
+    info "history.jsonl already present — not reseeding"
+  else
+    local tmp; tmp="$(mktemp -d)"
+    if git clone -q "https://github.com/$slug.git" "$tmp" 2>/dev/null; then
+      if ( cd "$tmp" \
+           && git checkout -q -B main \
+           && : > history.jsonl \
+           && git add history.jsonl \
+           && git -c user.email=bootstrap@local -c user.name=bootstrap commit -q -m "seed history" \
+           && git push -q -u origin main ); then
+        ok "seeded empty history.jsonl on main"
+      else
+        todo "couldn't seed history.jsonl automatically — see docs/setup.md 'Durable run history' for the manual steps"
+      fi
+    else
+      todo "couldn't clone $slug to seed it — see docs/setup.md 'Durable run history' for the manual steps"
+    fi
+    rm -rf "$tmp"
+  fi
+
+  echo
+  echo "One-time browser step (a routine setting, not a GitHub one — can't be scripted):"
+  info "add $slug as a SECOND repository on the routine"
+  info "enable 'Allow unrestricted branch pushes' on $slug only (leave the code repo on the default)"
+}
+
 case "${1:-}" in
-  preflight) preflight ;;
-  validate)  validate ;;
+  preflight)  preflight ;;
+  validate)   validate ;;
+  state-repo) state_repo "${2:-}" ;;
   *)
-    echo "usage: $0 [preflight | validate]" >&2
+    echo "usage: $0 [preflight | validate | state-repo [name]]" >&2
     exit 2
     ;;
 esac

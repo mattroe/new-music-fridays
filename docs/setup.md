@@ -2,6 +2,8 @@
 
 Clone the repo and run your own weekly digest. It runs as a cloud routine on Anthropic-managed infrastructure on a schedule, so the Friday email fires whether or not your computer is on, and it stays on your Claude subscription. A full run takes about 5–15 minutes.
 
+**You don't need the Claude desktop app.** Claude Code in your terminal does all the local work (clone, preflight, `config/delivery.yaml`, git), and the cloud steps live on **claude.ai in any browser** — the desktop app only wraps the same flows. The few browser steps below (the Last.fm connector OAuth, the routine's environment settings, your Resend dashboard) can't be driven from the CLI; everything else can. You can even scaffold the routine itself from the terminal with `/schedule` — see [Set up the routine](#set-up-the-routine).
+
 ## Prerequisites
 
 - A Last.fm account.
@@ -48,7 +50,11 @@ the steps I can only finish in the browser. Skim README.md and docs/setup.md fir
      claude.ai/customize/connectors and complete its OAuth once.
    - Resend: confirm a verified sender for my "from" address and a Sending-access
      API key.
-   - Create the routine at claude.ai/code/routines —
+   - Create the routine. I don't need the desktop app — either scaffold it from
+     the terminal with `/schedule` in Claude Code (creates the scheduled routine
+     and attaches the repo; I'll still finish connector + env vars + network
+     access in the web settings, which the CLI can't set), or create it in the
+     browser at claude.ai/code/routines. Either way it needs:
        Repository: <my repo from step 3>
        Prompt:     Follow the instructions in SKILL.md at the repository root
                    exactly. It is the runtime prompt for this routine.
@@ -63,11 +69,13 @@ the steps I can only finish in the browser. Skim README.md and docs/setup.md fir
      managers" (without it the send fails with a proxy 403).
    - Offer to also prep a second `new-music-fridays-test` routine — same repo,
      no schedule, `NMF_TEST=1` — for safe smoke tests.
-   - Optional — durable run history: offer to create a private
-     `new-music-fridays-state` repo (seed an empty `history.jsonl` on `main`), add
-     it as a SECOND repo on the routine, and enable "Allow unrestricted branch
-     pushes" on that state repo only (leave the code repo on the default). Skipping
-     this just means no cross-run history is kept. See "Durable run history".
+   - Optional — durable run history: if I want it, just run
+     `bash scripts/bootstrap.sh state-repo` for me — it creates the private state
+     repo and seeds `history.jsonl` automatically (don't make me do the gh/git by
+     hand). Then the only manual part left is the routine setting: add it as a
+     SECOND repo on the routine and enable "Allow unrestricted branch pushes" on
+     that state repo only (leave the code repo on the default). Skipping the whole
+     thing just means no cross-run history is kept. See "Durable run history".
 
 End with a summary of what's done and the exact list of clicks I still owe.
 ```
@@ -104,7 +112,7 @@ Optional tuning:
    - commit `config/delivery.yaml` to a **private** repo (it's gitignored by default, so force it in: `git add -f config/delivery.yaml`), **or**
    - keep it out of git: set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` as routine **environment variables** (step 3). At the start of each run `SKILL.md` calls `scripts/write-delivery.sh`, which writes `config/delivery.yaml` from them — done *during* the run, in the repo root. (An environment **setup script** can't do this: it runs before the repo is cloned, so there's no `config/` to write into.)
 
-3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) (or `/schedule` from the CLI):
+3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) — or scaffold it from the terminal with `/schedule` in Claude Code (no desktop app needed). `/schedule` creates the scheduled routine and attaches the repo, but the connector toggle, environment variables, and network-access allowlist below can only be set in the web routine settings, so finish those there regardless:
    - **Repository:** the repo from step 2.
    - **Prompt:** `Follow the instructions in SKILL.md at the repository root exactly. It is the runtime prompt for this routine.`
    - **Model:** Sonnet is the default — sufficient curation for this digest at a fraction of the token cost (Opus is available for deeper curation, Haiku for cheaper/faster runs). The `model:` frontmatter in `SKILL.md` is ignored by routines — pick the model here. (There's no effort control on a routine.)
@@ -122,13 +130,21 @@ This step is **optional and best-effort**: if you don't set up a state repo, run
 
 To enable it:
 
-1. **Create a private repo** named `new-music-fridays-state` (any name works — the routine finds it by sibling clone). Seed it with an empty `history.jsonl` committed to `main`:
+1. **Create + seed the private state repo** — one command, no manual gh/git dance (idempotent: a no-op if the repo already exists, and it only seeds `history.jsonl` when missing):
+   ```bash
+   bash scripts/bootstrap.sh state-repo          # or: bash scripts/bootstrap.sh state-repo my-custom-name
+   ```
+   It creates a **private** repo (default name `new-music-fridays-state`), seeds an empty `history.jsonl` on `main`, and prints the one browser step it can't do (step 3 below). Needs the `gh` CLI authenticated (`gh auth login`).
+
+   <details><summary>What it does under the hood, if you'd rather run it by hand</summary>
+
    ```bash
    gh repo create new-music-fridays-state --private
    git clone git@github.com:<you>/new-music-fridays-state.git
    cd new-music-fridays-state
    touch history.jsonl && git add history.jsonl && git commit -m "seed history" && git push
    ```
+   </details>
 2. **Add it as a second repository on the routine** (routines accept more than one repo; each is cloned from its default branch at the start of every run).
 3. **Enable "Allow unrestricted branch pushes" on the state repo only.** By default a routine can push only to `claude/`-prefixed branches, but it clones every repo from its default branch — so history written to a `claude/…` branch would never be read back the next week. Enabling unrestricted pushes lets `SKILL.md` commit `history.jsonl` straight to `main`, where next week's clone sees it. Leave your **code** repo on the safe default — the setting is per-repository, and only the pure-data state repo needs it. (Conservative alternative: keep the default and set `NMF_STATE_BRANCH=claude/history` so history accumulates on a long-lived `claude/` branch instead.)
 
