@@ -69,11 +69,13 @@ the steps I can only finish in the browser. Skim README.md and docs/setup.md fir
      managers" (without it the send fails with a proxy 403).
    - Offer to also prep a second `new-music-fridays-test` routine — same repo,
      no schedule, `NMF_TEST=1` — for safe smoke tests.
-   - Optional — durable run history: offer to create a private
-     `new-music-fridays-state` repo (seed an empty `history.jsonl` on `main`), add
-     it as a SECOND repo on the routine, and enable "Allow unrestricted branch
-     pushes" on that state repo only (leave the code repo on the default). Skipping
-     this just means no cross-run history is kept. See "Durable run history".
+   - Optional — durable run history: if I want it, just run
+     `bash scripts/bootstrap.sh state-repo` for me — it creates the private state
+     repo and seeds `history.jsonl` automatically (don't make me do the gh/git by
+     hand). Then the only manual part left is the routine setting: add it as a
+     SECOND repo on the routine and enable "Allow unrestricted branch pushes" on
+     that state repo only (leave the code repo on the default). Skipping the whole
+     thing just means no cross-run history is kept. See "Durable run history".
 
 End with a summary of what's done and the exact list of clicks I still owe.
 ```
@@ -128,13 +130,21 @@ This step is **optional and best-effort**: if you don't set up a state repo, run
 
 To enable it:
 
-1. **Create a private repo** named `new-music-fridays-state` (any name works — the routine finds it by sibling clone). Seed it with an empty `history.jsonl` committed to `main`:
+1. **Create + seed the private state repo** — one command, no manual gh/git dance (idempotent: a no-op if the repo already exists, and it only seeds `history.jsonl` when missing):
+   ```bash
+   bash scripts/bootstrap.sh state-repo          # or: bash scripts/bootstrap.sh state-repo my-custom-name
+   ```
+   It creates a **private** repo (default name `new-music-fridays-state`), seeds an empty `history.jsonl` on `main`, and prints the one browser step it can't do (step 3 below). Needs the `gh` CLI authenticated (`gh auth login`).
+
+   <details><summary>What it does under the hood, if you'd rather run it by hand</summary>
+
    ```bash
    gh repo create new-music-fridays-state --private
    git clone git@github.com:<you>/new-music-fridays-state.git
    cd new-music-fridays-state
    touch history.jsonl && git add history.jsonl && git commit -m "seed history" && git push
    ```
+   </details>
 2. **Add it as a second repository on the routine** (routines accept more than one repo; each is cloned from its default branch at the start of every run).
 3. **Enable "Allow unrestricted branch pushes" on the state repo only.** By default a routine can push only to `claude/`-prefixed branches, but it clones every repo from its default branch — so history written to a `claude/…` branch would never be read back the next week. Enabling unrestricted pushes lets `SKILL.md` commit `history.jsonl` straight to `main`, where next week's clone sees it. Leave your **code** repo on the safe default — the setting is per-repository, and only the pure-data state repo needs it. (Conservative alternative: keep the default and set `NMF_STATE_BRANCH=claude/history` so history accumulates on a long-lived `claude/` branch instead.)
 

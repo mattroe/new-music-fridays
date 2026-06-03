@@ -39,7 +39,7 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 - `scripts/write-delivery.sh` — materializes `config/delivery.yaml` from `NMF_*` env vars at run start
 - `scripts/history.sh` — reads recent run records back and appends one per production run to the private state repo's `history.jsonl` (best-effort; production-only; see [Durable run history](docs/setup.md#durable-run-history))
 - `scripts/publish-digest.sh` — copies the rendered `email.html`/`email.txt` into `digests/<date>/` in the private state repo and pushes them each production run, for a durable downloadable artifact (best-effort; production-only; no-op without a state repo; see [Getting the digest as a downloadable file](docs/delivery.md#getting-the-digest-as-a-downloadable-file))
-- `scripts/bootstrap.sh` — first-time setup helper: `preflight` reports toolchain/repo/config readiness, `validate` sanity-checks `config/delivery.yaml` (used by the bootstrap prompt in [Run your own](docs/setup.md))
+- `scripts/bootstrap.sh` — first-time setup helper: `preflight` reports toolchain/repo/config readiness, `validate` sanity-checks `config/delivery.yaml`, `state-repo` creates + seeds the private state repo in one command (used by the bootstrap prompt in [Run your own](docs/setup.md))
 - `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html`, `test-email.html`). Gitignored and ephemeral — not persisted after a cloud run.
 - `history.jsonl` — the durable per-run corpus; lives in a **separate private state repo**, never this one (gitignored here as defense-in-depth).
 
