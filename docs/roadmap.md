@@ -1,12 +1,15 @@
 # What's next
 
-Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. Durable per-run persistence ([#17](https://github.com/mattroe/new-music-fridays/issues/17)) has shipped — see [Durable run history](setup.md#durable-run-history) — so the data-driven work below now has a corpus to build on. The current set, in suggested tackle order (roughly by dependency; the validation and rubric work come last because they need several weeks of accumulated runs to mine):
+Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. Most of the originally-planned arc has now shipped:
 
-1. [#24](https://github.com/mattroe/new-music-fridays/issues/24) — verify the *explicit* and *implicit* feedback loops (see [Providing feedback](customizing.md#providing-feedback)) end-to-end in a cloud run; gates relying on them
-2. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model choice (one-week A/B); independent of the rest, so settle it early
-3. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
-4. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup (extend the pre-public gitignore audit to the history paths; run data lives only in the private state repo)
-5. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)
-6. [#7](https://github.com/mattroe/new-music-fridays/issues/7) — refine the "fit to taste" rubric in `SKILL.md` (needs the #17 corpus)
+- Durable per-run history ([#17](https://github.com/mattroe/new-music-fridays/issues/17)) — see [Durable run history](setup.md#durable-run-history).
+- The *explicit* and *implicit* feedback loops ([#23](https://github.com/mattroe/new-music-fridays/issues/23), [#25](https://github.com/mattroe/new-music-fridays/issues/25)), verified end-to-end ([#24](https://github.com/mattroe/new-music-fridays/issues/24)) — see [Providing feedback](customizing.md#providing-feedback).
+- Published, downloadable digests ([#27](https://github.com/mattroe/new-music-fridays/issues/27)) and optional non-email delivery via `method: none` ([#46](https://github.com/mattroe/new-music-fridays/pull/46)) — see [Other delivery options](delivery.md).
+- Output-shape pre-send validation ([#6](https://github.com/mattroe/new-music-fridays/issues/6)) and the "fit to taste" rubric ([#7](https://github.com/mattroe/new-music-fridays/issues/7)).
+- The model default ([#8](https://github.com/mattroe/new-music-fridays/issues/8)) and the open-source flip ([#19](https://github.com/mattroe/new-music-fridays/issues/19)) — the repo is now public under AGPL-3.0.
 
-The *implicit* feedback signal ([#25](https://github.com/mattroe/new-music-fridays/issues/25)) — a Last.fm "did I actually play it?" lookback over prior picks — has shipped; cloud verification rides along with #24.
+The one open item:
+
+- [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: have someone set the project up from the docs alone and report the friction. It gates nothing else, but each snag drives the next round of distribution fixes.
+
+New work is filed as [issues](https://github.com/mattroe/new-music-fridays/issues) as it comes up.

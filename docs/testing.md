@@ -10,6 +10,8 @@ To smoke-test without sending a production email, do a marked test run in the cl
 
 Verify from the run's session transcript: `<mode>` is `test`, `validation_passed: true`, `sent: true` with a `resend_message_id`, and both `html`/`text` bodies are populated. Review the rendered digest itself in the transcript (the `email.html`/`email.txt` bodies are logged there) or in the Resend dashboard — there's no inbox copy on a test run. The scheduled Friday run has no env var set, so it always runs in production mode regardless of any test routine.
 
+The checks above assume the default `method: resend`. If your `config/delivery.yaml` sets `method: none`, a test run has no send to verify — expect `sent: null` and no `resend_message_id`, and confirm the rendered `html`/`text` bodies in the transcript instead. (Publishing to the state repo is production-only, so a test run won't write `digests/` either — the transcript is the artifact.)
+
 ## Local checks (CI)
 
 Separate from the cloud smoke test, a GitHub Actions workflow (`.github/workflows/ci.yml`) gates every pull request and push to `main` with fast, deterministic checks that need no cloud, Last.fm connector, or Resend key:
