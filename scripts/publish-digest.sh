@@ -18,7 +18,7 @@
 # play counts, or recipient address; the full run directory does. Keeping raw
 # listening data out of durable storage bounds the blast radius if the private
 # repo's access is ever widened or leaked (the explicit decision behind #26).
-# `publish` refuses any mode that is not "production", so test/fast runs can never
+# `publish` refuses any mode that is not "production", so test runs can never
 # write to the corpus even if the step is reached in error.
 #
 # Usage:
@@ -80,7 +80,7 @@ if [[ -z "$mode" || -z "$date" || -z "$html_file" || -z "$text_file" ]]; then
 fi
 
 # Production-only mechanical safeguard — the corpus stays clean even if SKILL.md
-# reaches this in a test/fast run by mistake.
+# reaches this in a test run by mistake.
 if [[ "$mode" != "production" ]]; then
   echo "digest_published=false"
   echo "reason=non-production-skipped"

@@ -18,7 +18,7 @@
 #   scripts/run-state.sh finish <started_epoch>  emit finish stamp + duration
 #
 # Output (stdout, one key=value per line):
-#   start  -> NMF_FAST, NMF_TEST, today, weekday, started_at, started_epoch
+#   start  -> NMF_TEST, today, weekday, started_at, started_epoch
 #   finish -> finished_at, duration_seconds
 #
 # `started_epoch` from `start` is passed back verbatim to `finish` so the
@@ -30,7 +30,6 @@ cmd="${1:-}"
 
 case "$cmd" in
   start)
-    printf 'NMF_FAST=%s\n'      "${NMF_FAST:-}"
     printf 'NMF_TEST=%s\n'      "${NMF_TEST:-}"
     printf 'today=%s\n'         "$(date +%Y-%m-%d)"
     printf 'weekday=%s\n'       "$(date +%A)"

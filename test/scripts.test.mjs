@@ -24,7 +24,7 @@ const HISTORY = join(ROOT, "scripts/history.sh");
 // a known run mode regardless of the developer's shell.
 function baseEnv(overrides = {}) {
   const env = { ...process.env };
-  for (const k of ["NMF_FAST", "NMF_TEST", "NMF_FROM", "NMF_TO", "NMF_SUBJECT", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE"]) delete env[k];
+  for (const k of ["NMF_TEST", "NMF_FROM", "NMF_TO", "NMF_SUBJECT", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE"]) delete env[k];
   return { ...env, ...overrides };
 }
 
@@ -50,7 +50,7 @@ test("run-state start emits the documented keys in parseable form", async () => 
   const { code, stdout } = await runBash(RUN_STATE, ["start"], { env: baseEnv() });
   assert.equal(code, 0);
   const kv = parseKV(stdout);
-  for (const key of ["NMF_FAST", "NMF_TEST", "today", "weekday", "started_at", "started_epoch"]) {
+  for (const key of ["NMF_TEST", "today", "weekday", "started_at", "started_epoch"]) {
     assert.ok(key in kv, `missing key ${key}`);
   }
   assert.match(kv.today, /^\d{4}-\d{2}-\d{2}$/);
@@ -59,11 +59,11 @@ test("run-state start emits the documented keys in parseable form", async () => 
   assert.match(kv.weekday, /^[A-Za-z]+$/);
 });
 
-test("run-state start passes the run-mode env vars through", async () => {
-  const { stdout } = await runBash(RUN_STATE, ["start"], { env: baseEnv({ NMF_FAST: "1" }) });
-  const kv = parseKV(stdout);
-  assert.equal(kv.NMF_FAST, "1");
-  assert.equal(kv.NMF_TEST, "");
+test("run-state start passes the run-mode env var through", async () => {
+  const set = await runBash(RUN_STATE, ["start"], { env: baseEnv({ NMF_TEST: "1" }) });
+  assert.equal(parseKV(set.stdout).NMF_TEST, "1");
+  const unset = await runBash(RUN_STATE, ["start"], { env: baseEnv() });
+  assert.equal(parseKV(unset.stdout).NMF_TEST, "");
 });
 
 test("run-state finish computes a duration from a valid epoch", async () => {

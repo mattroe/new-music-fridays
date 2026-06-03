@@ -82,7 +82,7 @@ if (html !== null && txt !== null) {
 const lastfm = slurp("config/lastfm.yaml");
 check(lastfm !== null, "config/lastfm.yaml is missing");
 if (lastfm !== null) {
-  for (const key of ["top_artists:", "recommendations:", "similar_artists:", "top_n:"]) {
+  for (const key of ["top_artists:", "recommendations:", "similar_artists:", "top_n:", "test_mode:"]) {
     check(lastfm.includes(key), `config/lastfm.yaml is missing the "${key}" key SKILL.md reads`);
   }
 }
@@ -148,7 +148,7 @@ if (settingsRaw !== null) {
 
 // 8. publish-digest.sh (#27) runs on every production run. Existence is covered
 //    by the path scan in check 1; here we assert the two invariants the redaction
-//    and safety boundary rest on — the production-only guard (so test/fast runs
+//    and safety boundary rest on — the production-only guard (so test runs
 //    can never write a digest) and the push to the state repo.
 const publishDigest = slurp("scripts/publish-digest.sh");
 check(publishDigest !== null, "scripts/publish-digest.sh is missing");

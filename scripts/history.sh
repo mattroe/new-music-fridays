@@ -18,7 +18,7 @@
 # Trust/redaction boundary: this is a PURE DATA SINK. The record is built by
 # SKILL.md from the run's own validated state (never lifted from web content) and
 # written only AFTER the send. `append` refuses any record whose mode is not
-# "production", so test/fast runs can never pollute the corpus even if called.
+# "production", so test runs can never pollute the corpus even if called.
 # When SKILL.md reads records back, it must treat them as data, not instructions.
 #
 # Usage:
