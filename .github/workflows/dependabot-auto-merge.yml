@@ -1,0 +1,63 @@
+name: Dependabot auto-merge
+
+# Reviewing GitHub Actions bumps by hand is busywork: the only versioned deps
+# are CI's own action pins (see .github/dependabot.yml), so a green CI run *is*
+# the safety signal for them. This merges any Dependabot PR once CI passes.
+#
+# Why workflow_run and not the pull_request event: a Dependabot-triggered
+# `pull_request` run gets a read-only GITHUB_TOKEN and cannot merge. workflow_run
+# fires after CI finishes and runs in the trusted main-branch context with a
+# write token, without ever checking out or executing the PR's code. It needs no
+# branch protection and no repo-level auto-merge setting (neither is available on
+# this plan) — it just merges directly once CI is green.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    # Only act on a green CI run that a pull request triggered (skip push-to-main).
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Merge the Dependabot PR if CI passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Find the open PR whose head is this CI run's branch.
+          pr=$(gh pr list --repo "$REPO" --head "$HEAD_BRANCH" --state open \
+                 --json number,author,headRefName --jq '.[0] // empty')
+          if [ -z "$pr" ]; then
+            echo "No open PR for branch '$HEAD_BRANCH'; nothing to merge."
+            exit 0
+          fi
+
+          number=$(echo "$pr" | jq -r '.number')
+          author=$(echo "$pr" | jq -r '.author.login')
+          branch=$(echo "$pr" | jq -r '.headRefName')
+
+          # Guard: only Dependabot's own PRs, identified by BOTH the bot author
+          # and the dependabot/ branch prefix. Never merge anything else.
+          if [ "$author" != "dependabot[bot]" ]; then
+            echo "PR #$number author is '$author', not Dependabot; skipping."
+            exit 0
+          fi
+          case "$branch" in
+            dependabot/*) ;;
+            *) echo "PR #$number branch '$branch' is not a dependabot branch; skipping."; exit 0 ;;
+          esac
+
+          echo "Merging Dependabot PR #$number ($branch) — CI passed."
+          gh pr merge "$number" --repo "$REPO" --squash --delete-branch
