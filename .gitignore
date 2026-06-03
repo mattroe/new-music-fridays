@@ -7,3 +7,9 @@ config/delivery.yaml
 # Per-install Claude Code permissions — written locally while editing the repo,
 # never committed (the cloud routine uses its own Permissions tab instead).
 .claude/settings.local.json
+
+# Per-run history (#17) lives in a separate PRIVATE state repo, never this shared
+# code repo. These paths are ignored here as defense-in-depth so a run record can
+# never be committed upstream by accident.
+history.jsonl
+history/

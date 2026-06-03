@@ -11,6 +11,7 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 3. Cross-references candidates against the listening profile
 4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks, and Worth a Second Look) with endorsement citations where picks earned them
 5. Sends the email via Resend's REST API and writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email and the run's session transcript are the durable record
+6. Appends a distilled, redacted record of the run (kept/skipped candidates and the final picks — never raw listening data) to an append-only `history.jsonl` in a **separate private state repo**, so picks survive the discarded VM and can inform later weeks (e.g. de-duplicating Worth a Second Look). Production runs only; see [Durable run history](#durable-run-history)
 
 ## Run your own
 
@@ -77,6 +78,11 @@ you need detail on run modes or env vars).
      managers" (without it the send fails with a proxy 403).
    - Offer to also prep a second "new-music-fridays (test)" routine — same repo,
      no schedule, `NMF_FAST=1` — for safe smoke tests.
+   - Optional — durable run history: offer to create a private
+     `new-music-fridays-state` repo (seed an empty `history.jsonl` on `main`), add
+     it as a SECOND repo on the routine, and enable "Allow unrestricted branch
+     pushes" on that state repo only (leave the code repo on the default). Skipping
+     this just means no cross-run history is kept. See "Durable run history".
 
 End with a summary of what's done and the exact list of clicks I still owe.
 ```
@@ -122,6 +128,26 @@ Optional tuning:
    - **Environment variables:** set `RESEND_API_KEY` (a Resend **Sending-access** key for your domain) so `scripts/send-email.mjs` can send. For the keep-it-out-of-git option (step 2), also add `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT`. Leave the environment's **Setup script** empty — delivery config is written during the run, not at setup.
 
 4. **Test it.** Use **Run now** to fire the routine — note this sends a real, unprefixed production email. Open the run as a session from the routines list to see what it did and its token usage in the transcript. (`runs/<date>/` artifacts don't persist in the cloud, and `meta.json.tokens` is `null` — that's expected; read usage from the transcript.) To check the pipeline without a production send, do a marked test run first — see [Testing a fork](#testing-a-fork).
+
+### Durable run history
+
+Each production run distils what it considered into one JSON line — kept/skipped candidates, the genre profile, and the final picks — and appends it to an append-only `history.jsonl`. Because the routine VM is discarded after every run, this can't live on disk and must not live in the shared code repo (it's per-user and private). Instead it lives in a **separate private state repo** that the routine clones alongside the code repo.
+
+This step is **optional and best-effort**: if you don't set up a state repo, runs still send normally — they just don't keep history. Set it up when you want the cross-week features that build on it (today: de-duplicating Worth a Second Look; next: the feedback loop in [#4](https://github.com/mattroe/new-music-fridays/issues/4)).
+
+To enable it:
+
+1. **Create a private repo** named `new-music-fridays-state` (any name works — the routine finds it by sibling clone). Seed it with an empty `history.jsonl` committed to `main`:
+   ```bash
+   gh repo create new-music-fridays-state --private
+   git clone git@github.com:<you>/new-music-fridays-state.git
+   cd new-music-fridays-state
+   touch history.jsonl && git add history.jsonl && git commit -m "seed history" && git push
+   ```
+2. **Add it as a second repository on the routine** (routines accept more than one repo; each is cloned from its default branch at the start of every run).
+3. **Enable "Allow unrestricted branch pushes" on the state repo only.** By default a routine can push only to `claude/`-prefixed branches, but it clones every repo from its default branch — so history written to a `claude/…` branch would never be read back the next week. Enabling unrestricted pushes lets `SKILL.md` commit `history.jsonl` straight to `main`, where next week's clone sees it. Leave your **code** repo on the safe default — the setting is per-repository, and only the pure-data state repo needs it. (Conservative alternative: keep the default and set `NMF_STATE_BRANCH=claude/history` so history accumulates on a long-lived `claude/` branch instead.)
+
+No extra secret or network-access change is needed: the routine's existing GitHub auth reaches any repo your account can see, and git traffic uses the dedicated GitHub proxy. `SKILL.md` reads the record back as untrusted data and refuses to persist anything but production runs, so test/fast runs never pollute the corpus.
 
 ### Testing a fork
 
@@ -171,18 +197,18 @@ If you don't want any email at all, replace the Send step in `SKILL.md` with one
 - **Run now sent a real production email.** That's expected — the production routine runs in production mode. For smoke tests, use a separate test routine with `NMF_FAST=1` (or `NMF_TEST=1`) set — see [Testing a fork](#testing-a-fork).
 - **`meta.json` shows `sent: false`.** Either pre-send validation failed (look for the abort message in the run log) or the send call itself errored. The artifacts in the run directory are still useful for debugging.
 - **`meta.json` shows `tokens: null`.** Expected — a routine run can't read its own token usage. Review per-run usage in the run's session transcript, and aggregate spend at [claude.ai/settings/usage](https://claude.ai/settings/usage).
+- **Run history isn't being saved (`meta.json.notes` mentions `history not persisted`).** Persistence is best-effort and never blocks the send, so the email still arrives. Check the `reason`: `state-repo-not-found` means no state repo is set up or the routine isn't cloning it (see [Durable run history](#durable-run-history), or set `NMF_STATE_DIR`); `git-push-failed` usually means "Allow unrestricted branch pushes" isn't enabled on the state repo, so the push to `main` was rejected (enable it, or set `NMF_STATE_BRANCH=claude/history`). Only production runs persist — test/fast runs are excluded by design.
 
 ## What's next
 
-Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set, in suggested tackle order — roughly by dependency, with persistence first because the data-driven validation and rubric work need several weeks of accumulated runs to mine (which is also why those come last):
+Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. Durable per-run persistence ([#17](https://github.com/mattroe/new-music-fridays/issues/17)) has shipped — see [Durable run history](#durable-run-history) — so the data-driven work below now has a corpus to build on. The current set, in suggested tackle order (roughly by dependency; the validation and rubric work come last because they need several weeks of accumulated runs to mine):
 
-1. [#17](https://github.com/mattroe/new-music-fridays/issues/17) — persist a distilled per-run record durably (private state repo); the foundation the data-driven work below builds on
-2. [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer weekly picks (builds on #17)
-3. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model + effort choice (one-week A/B); independent of the rest, so settle it early
-4. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
-5. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup
-6. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)
-7. [#7](https://github.com/mattroe/new-music-fridays/issues/7) — refine the "fit to taste" rubric in `SKILL.md` (needs the #17 corpus)
+1. [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer weekly picks (reads picks back from the #17 history)
+2. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model + effort choice (one-week A/B); independent of the rest, so settle it early
+3. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
+4. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup (extend the pre-public gitignore audit to the history paths; run data lives only in the private state repo)
+5. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)
+6. [#7](https://github.com/mattroe/new-music-fridays/issues/7) — refine the "fit to taste" rubric in `SKILL.md` (needs the #17 corpus)
 
 ## Layout
 
@@ -196,8 +222,10 @@ Forward-looking work lives in [open issues](https://github.com/mattroe/new-music
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
 - `scripts/run-state.sh` — emits run-state values (date, run mode, timestamps, duration) for `SKILL.md`
 - `scripts/write-delivery.sh` — materializes `config/delivery.yaml` from `NMF_*` env vars at run start
+- `scripts/history.sh` — reads recent run records back and appends one per production run to the private state repo's `history.jsonl` (best-effort; production-only; see [Durable run history](#durable-run-history))
 - `scripts/bootstrap.sh` — first-time setup helper: `preflight` reports toolchain/repo/config readiness, `validate` sanity-checks `config/delivery.yaml` (used by the bootstrap prompt above)
 - `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html`, `test-email.html`, `fast-email.html`). Gitignored and ephemeral — not persisted after a cloud run.
+- `history.jsonl` — the durable per-run corpus; lives in a **separate private state repo**, never this one (gitignored here as defense-in-depth).
 
 ## Development
 
