@@ -2,6 +2,8 @@
 
 Clone the repo and run your own weekly digest. It runs as a cloud routine on Anthropic-managed infrastructure on a schedule, so the Friday email fires whether or not your computer is on, and it stays on your Claude subscription. A full run takes about 5–15 minutes.
 
+**You don't need the Claude desktop app.** Claude Code in your terminal does all the local work (clone, preflight, `config/delivery.yaml`, git), and the cloud steps live on **claude.ai in any browser** — the desktop app only wraps the same flows. The few browser steps below (the Last.fm connector OAuth, the routine's environment settings, your Resend dashboard) can't be driven from the CLI; everything else can. You can even scaffold the routine itself from the terminal with `/schedule` — see [Set up the routine](#set-up-the-routine).
+
 ## Prerequisites
 
 - A Last.fm account.
@@ -48,7 +50,11 @@ the steps I can only finish in the browser. Skim README.md and docs/setup.md fir
      claude.ai/customize/connectors and complete its OAuth once.
    - Resend: confirm a verified sender for my "from" address and a Sending-access
      API key.
-   - Create the routine at claude.ai/code/routines —
+   - Create the routine. I don't need the desktop app — either scaffold it from
+     the terminal with `/schedule` in Claude Code (creates the scheduled routine
+     and attaches the repo; I'll still finish connector + env vars + network
+     access in the web settings, which the CLI can't set), or create it in the
+     browser at claude.ai/code/routines. Either way it needs:
        Repository: <my repo from step 3>
        Prompt:     Follow the instructions in SKILL.md at the repository root
                    exactly. It is the runtime prompt for this routine.
@@ -104,7 +110,7 @@ Optional tuning:
    - commit `config/delivery.yaml` to a **private** repo (it's gitignored by default, so force it in: `git add -f config/delivery.yaml`), **or**
    - keep it out of git: set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` as routine **environment variables** (step 3). At the start of each run `SKILL.md` calls `scripts/write-delivery.sh`, which writes `config/delivery.yaml` from them — done *during* the run, in the repo root. (An environment **setup script** can't do this: it runs before the repo is cloned, so there's no `config/` to write into.)
 
-3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) (or `/schedule` from the CLI):
+3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) — or scaffold it from the terminal with `/schedule` in Claude Code (no desktop app needed). `/schedule` creates the scheduled routine and attaches the repo, but the connector toggle, environment variables, and network-access allowlist below can only be set in the web routine settings, so finish those there regardless:
    - **Repository:** the repo from step 2.
    - **Prompt:** `Follow the instructions in SKILL.md at the repository root exactly. It is the runtime prompt for this routine.`
    - **Model:** Sonnet is the default — sufficient curation for this digest at a fraction of the token cost (Opus is available for deeper curation, Haiku for cheaper/faster runs). The `model:` frontmatter in `SKILL.md` is ignored by routines — pick the model here. (There's no effort control on a routine.)
