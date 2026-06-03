@@ -82,7 +82,7 @@ if (html !== null && txt !== null) {
 const lastfm = slurp("config/lastfm.yaml");
 check(lastfm !== null, "config/lastfm.yaml is missing");
 if (lastfm !== null) {
-  for (const key of ["top_artists:", "recommendations:", "similar_artists:", "top_n:", "test_mode:"]) {
+  for (const key of ["top_artists:", "recommendations:", "similar_artists:", "top_n:", "playback_lookback:", "test_mode:"]) {
     check(lastfm.includes(key), `config/lastfm.yaml is missing the "${key}" key SKILL.md reads`);
   }
 }

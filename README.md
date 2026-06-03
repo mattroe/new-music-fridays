@@ -14,7 +14,7 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 3. Cross-references candidates against the listening profile
 4. Composes a digest (Top 5, Section A: known artists, Section B: discovery picks, and Worth a Second Look) with endorsement citations where picks earned them
 5. Sends the email via Resend's REST API and writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email and the run's session transcript are the durable record
-6. Appends a distilled, redacted record of the run (kept/skipped candidates and the final picks — never raw listening data) to an append-only `history.jsonl` in a **separate private state repo**, so picks survive the discarded VM and can inform later weeks (e.g. de-duplicating Worth a Second Look). Production runs only; see [Durable run history](docs/setup.md#durable-run-history)
+6. Appends a distilled, redacted record of the run (kept/skipped candidates and the final picks — never raw listening data) to an append-only `history.jsonl` in a **separate private state repo**, so picks survive the discarded VM and can inform later weeks (de-duplicating Worth a Second Look, and an implicit "did I actually play it?" lookback that steers curation toward the past picks you played). Production runs only; see [Durable run history](docs/setup.md#durable-run-history)
 
 ## Documentation
 
