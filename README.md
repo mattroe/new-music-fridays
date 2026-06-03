@@ -47,4 +47,6 @@ For editing conventions and the change-gating workflow, see `CLAUDE.md` and [Tes
 
 ## License
 
-[GNU AGPL-3.0](LICENSE). You're free to run, study, modify, and share this; if you run a modified version as a network service, the AGPL asks that you offer your users its source too. A copyleft choice — derivatives stay open.
+Copyright (C) 2026 Matt Roe. Licensed under the [GNU AGPL-3.0](LICENSE).
+
+You're free to run, study, modify, and share this; if you run a modified version as a network service, the AGPL asks that you offer your users its source too. A copyleft choice — derivatives stay open.
