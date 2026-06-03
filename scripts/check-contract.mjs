@@ -197,6 +197,40 @@ if (feedback !== null) {
     "scripts/feedback.sh dropped its `# feedback:` fail-soft comment",
   );
 }
+// 11. phase-timing.sh (the per-phase wall-clock instrument) keeps the contract
+//    SKILL.md's Finalize step parses — the `phase.` key prefix on report output —
+//    and the integer guard that keeps an injected epoch token out of arithmetic
+//    (mirrors run-state.sh finish). Existence is covered by the path scan in check 1.
+const phaseTiming = slurp("scripts/phase-timing.sh");
+check(phaseTiming !== null, "scripts/phase-timing.sh is missing");
+if (phaseTiming !== null) {
+  check(
+    phaseTiming.includes("phase.") && /\bmark\b/.test(phaseTiming) && /\breport\b/.test(phaseTiming),
+    "scripts/phase-timing.sh must keep its mark/report commands and `phase.` report prefix (SKILL.md parses it)",
+  );
+  check(
+    phaseTiming.includes("^[0-9]+$"),
+    "scripts/phase-timing.sh dropped the integer guard on epoch input",
+  );
+}
+
+// 12. Test-mode window anchoring: run-state.sh emits `last_friday` and SKILL.md
+//     keys its release window off `<release_anchor>` / `<last_friday>`. Without
+//     this wiring a mid-week test run evaluates the empty `(last Friday, today]`
+//     gap, surfaces zero in-window picks, and aborts before the send — so the
+//     smoke test can never verify delivery. Lock the contract.
+const runState = slurp("scripts/run-state.sh");
+check(runState !== null, "scripts/run-state.sh is missing");
+if (runState !== null) {
+  check(
+    runState.includes("last_friday="),
+    "scripts/run-state.sh no longer emits last_friday (SKILL.md anchors the test window to it)",
+  );
+}
+check(
+  skill.includes("<release_anchor>") && skill.includes("<last_friday>"),
+  "SKILL.md no longer anchors its release window to <release_anchor>/<last_friday>",
+);
 
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);

@@ -18,7 +18,7 @@
 #   scripts/run-state.sh finish <started_epoch>  emit finish stamp + duration
 #
 # Output (stdout, one key=value per line):
-#   start  -> NMF_TEST, today, weekday, started_at, started_epoch
+#   start  -> NMF_TEST, today, weekday, last_friday, started_at, started_epoch
 #   finish -> finished_at, duration_seconds
 #
 # `started_epoch` from `start` is passed back verbatim to `finish` so the
@@ -33,6 +33,21 @@ case "$cmd" in
     printf 'NMF_TEST=%s\n'      "${NMF_TEST:-}"
     printf 'today=%s\n'         "$(date +%Y-%m-%d)"
     printf 'weekday=%s\n'       "$(date +%A)"
+    # Most recent Friday on or before today (== today when today is Friday). The
+    # test-mode release window anchors to this so a run fired any weekday still
+    # evaluates a complete NMF drop instead of the empty gap between Fridays;
+    # production anchors to `today` (a Friday) and gets the same value. ISO
+    # weekday `%u` is 1..7 (Fri=5) on both GNU and BSD date; only the day
+    # subtraction differs, so branch on which `date` is present. The math stays
+    # inside this allowlisted script for the same reason the duration does.
+    u="$(date +%u)"
+    back=$(( (u - 5 + 7) % 7 ))
+    if date -d @0 >/dev/null 2>&1; then
+      last_friday="$(date -d "-${back} days" +%Y-%m-%d)"   # GNU (the cloud runtime)
+    else
+      last_friday="$(date -v-"${back}"d +%Y-%m-%d)"         # BSD (macOS dev/test)
+    fi
+    printf 'last_friday=%s\n'   "$last_friday"
     printf 'started_at=%s\n'    "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf 'started_epoch=%s\n' "$(date +%s)"
     ;;
