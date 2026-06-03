@@ -25,12 +25,24 @@ similar_artists:
   limit: 50
 
 # Test-mode breadth trim (NMF_TEST=1). The on-merge smoke test runs the full
-# path on the production model, but the similar-artist fan-out — top_n x 2 charts,
-# the run's single biggest source of MCP round-trips — dominates wall-clock. In
-# test mode SKILL.md uses these reduced values and the 3month chart only (skips
-# the overall fan-out), so the path is still exercised with far fewer calls.
-# Production ignores this block.
+# path on the production model, but a few reads dominate wall-clock. In test mode
+# SKILL.md uses these reduced values; production ignores this block.
+#   - similar_artists: the fan-out (top_n x 2 charts) is the run's single biggest
+#     source of MCP round-trips. Test mode uses the 3month chart only (skips the
+#     overall fan-out) with a smaller top_n, so the path is still exercised with
+#     far fewer calls.
+#   - top_artists: the production overall chart pulls 1000 rows — the heaviest
+#     single Last.fm payload. Test mode drops 12month (light context) and caps
+#     overall at 150, keeping the genre lean (1month/3month) and the recognition
+#     net intact while cutting the read.
 test_mode:
+  top_artists:
+    - period: 1month
+      limit: 35
+    - period: 3month
+      limit: 50
+    - period: overall
+      limit: 150
   similar_artists:
     top_n: 5
     limit: 50

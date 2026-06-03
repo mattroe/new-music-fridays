@@ -20,6 +20,7 @@ const RUN_STATE = join(ROOT, "scripts/run-state.sh");
 const WRITE_DELIVERY = join(ROOT, "scripts/write-delivery.sh");
 const HISTORY = join(ROOT, "scripts/history.sh");
 const FEEDBACK = join(ROOT, "scripts/feedback.sh");
+const PHASE_TIMING = join(ROOT, "scripts/phase-timing.sh");
 
 // Start from the real env (PATH etc.) but clear the NMF_* vars so each case sets
 // a known run mode regardless of the developer's shell.
@@ -51,13 +52,26 @@ test("run-state start emits the documented keys in parseable form", async () => 
   const { code, stdout } = await runBash(RUN_STATE, ["start"], { env: baseEnv() });
   assert.equal(code, 0);
   const kv = parseKV(stdout);
-  for (const key of ["NMF_TEST", "today", "weekday", "started_at", "started_epoch"]) {
+  for (const key of ["NMF_TEST", "today", "weekday", "last_friday", "started_at", "started_epoch"]) {
     assert.ok(key in kv, `missing key ${key}`);
   }
   assert.match(kv.today, /^\d{4}-\d{2}-\d{2}$/);
   assert.match(kv.started_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
   assert.match(kv.started_epoch, /^\d+$/);
   assert.match(kv.weekday, /^[A-Za-z]+$/);
+});
+
+test("run-state start emits last_friday — a Friday on or before today, within the past week", async () => {
+  const { stdout } = await runBash(RUN_STATE, ["start"], { env: baseEnv() });
+  const kv = parseKV(stdout);
+  assert.match(kv.last_friday, /^\d{4}-\d{2}-\d{2}$/);
+  const lf = new Date(kv.last_friday + "T00:00:00Z");
+  const today = new Date(kv.today + "T00:00:00Z");
+  assert.equal(lf.getUTCDay(), 5, "last_friday must fall on a Friday");
+  assert.ok(lf <= today, "last_friday must be on or before today");
+  assert.ok((today - lf) / 86_400_000 <= 6, "last_friday must be within the past 7 days");
+  // On a Friday the anchor is today itself (production's window is unchanged).
+  if (today.getUTCDay() === 5) assert.equal(kv.last_friday, kv.today);
 });
 
 test("run-state start passes the run-mode env var through", async () => {
@@ -81,6 +95,60 @@ test("run-state finish rejects non-integer input (command-substitution guard)", 
     assert.equal(code, 2, `expected exit 2 for ${JSON.stringify(bad)}`);
     assert.match(stderr, /usage/i);
   }
+});
+
+// --- phase-timing.sh (per-phase wall-clock for meta.json.phase_seconds) ---------
+// Epochs are injected (the optional trailing arg) so deltas are deterministic
+// without sleeping — the same test-injection seam run-state.sh finish uses.
+
+test("phase-timing report attributes each gap to the earlier mark, plus a total", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-pt-"));
+  const env = baseEnv();
+  for (const [label, epoch] of [["gather", "1000"], ["research_pass1", "1010"], ["research_pass2", "1040"], ["compose", "1045"]]) {
+    const m = await runBash(PHASE_TIMING, ["mark", dir, label, epoch], { env });
+    assert.equal(m.code, 0);
+  }
+  const { code, stdout } = await runBash(PHASE_TIMING, ["report", dir, "1060"], { env });
+  assert.equal(code, 0);
+  const kv = parseKV(stdout);
+  assert.equal(kv["phase.gather"], "10");          // 1010 - 1000
+  assert.equal(kv["phase.research_pass1"], "30");  // 1040 - 1010
+  assert.equal(kv["phase.research_pass2"], "5");   // 1045 - 1040
+  assert.equal(kv["phase.compose"], "15");         // 1060(now) - 1045
+  assert.equal(kv["phase.total"], "60");           // 1060 - 1000
+});
+
+test("phase-timing report sums durations for a repeated label", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-pt-"));
+  const env = baseEnv();
+  for (const [label, epoch] of [["gather", "100"], ["send", "110"], ["gather", "115"]]) {
+    await runBash(PHASE_TIMING, ["mark", dir, label, epoch], { env });
+  }
+  const { stdout } = await runBash(PHASE_TIMING, ["report", dir, "120"], { env });
+  const kv = parseKV(stdout);
+  assert.equal(kv["phase.gather"], "15");  // (110-100) + (120-115)
+  assert.equal(kv["phase.send"], "5");     // 115 - 110
+  assert.equal(kv["phase.total"], "20");   // 120 - 100
+});
+
+test("phase-timing report is fail-soft when nothing was marked (never blocks finalize)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-pt-"));
+  const { code, stdout } = await runBash(PHASE_TIMING, ["report", dir, "1060"], { env: baseEnv() });
+  assert.equal(code, 0);
+  assert.match(stdout, /# phase-timing: no marks recorded/);
+});
+
+test("phase-timing mark rejects a non-label / non-integer epoch (injection guard)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-pt-"));
+  const env = baseEnv();
+  const badLabel = await runBash(PHASE_TIMING, ["mark", dir, "evil; rm -rf /tmp/nope", "100"], { env });
+  assert.equal(badLabel.code, 2);
+  assert.match(badLabel.stderr, /usage/i);
+  const badEpoch = await runBash(PHASE_TIMING, ["mark", dir, "gather", "$(date)"], { env });
+  assert.equal(badEpoch.code, 2);
+  assert.match(badEpoch.stderr, /usage/i);
+  // Neither bad call left a marks file behind to corrupt a later report.
+  assert.equal(existsSync(join(dir, "phase-timings.tsv")), false);
 });
 
 test("write-delivery writes config/delivery.yaml when all NMF_* are set", async () => {
