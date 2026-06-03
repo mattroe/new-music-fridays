@@ -133,7 +133,7 @@ Optional tuning:
 
 Each production run distils what it considered into one JSON line — kept/skipped candidates, the genre profile, and the final picks — and appends it to an append-only `history.jsonl`. Because the routine VM is discarded after every run, this can't live on disk and must not live in the shared code repo (it's per-user and private). Instead it lives in a **separate private state repo** that the routine clones alongside the code repo.
 
-This step is **optional and best-effort**: if you don't set up a state repo, runs still send normally — they just don't keep history. Set it up when you want the cross-week features that build on it (today: de-duplicating Worth a Second Look; next: the feedback loop in [#4](https://github.com/mattroe/new-music-fridays/issues/4)).
+This step is **optional and best-effort**: if you don't set up a state repo, runs still send normally — they just don't keep history. Set it up when you want the cross-week features that build on it (today: de-duplicating Worth a Second Look; next: the implicit feedback lookback in [#25](https://github.com/mattroe/new-music-fridays/issues/25)).
 
 To enable it:
 
@@ -189,7 +189,7 @@ If you don't want any email at all, replace the Send step in `SKILL.md` with one
 
 ## Providing feedback
 
-The digest steers toward your taste over time from a single trusted file, `config/feedback.md` — append-only prose where you react to each week's picks (what you loved, want more of, or want pulled back, by artist, genre, or scene). Each Friday run reads it before searching, weights the last ~12 weeks most heavily, biases its research toward what you've liked and away from what you haven't, and notes the influence in that run's `candidates.md`. An empty or missing file is fine — runs proceed normally until you start adding reactions. (This is the *explicit* half of the feedback loop in [#4](https://github.com/mattroe/new-music-fridays/issues/4); the implicit "did I actually play it?" signal is parked on the [#17](https://github.com/mattroe/new-music-fridays/issues/17) history corpus.)
+The digest steers toward your taste over time from a single trusted file, `config/feedback.md` — append-only prose where you react to each week's picks (what you loved, want more of, or want pulled back, by artist, genre, or scene). Each Friday run reads it before searching, weights the last ~12 weeks most heavily, biases its research toward what you've liked and away from what you haven't, and notes the influence in that run's `candidates.md`. An empty or missing file is fine — runs proceed normally until you start adding reactions. (This is the *explicit* half of the feedback loop; the implicit "did I actually play it?" signal is tracked in [#25](https://github.com/mattroe/new-music-fridays/issues/25), built on the [#17](https://github.com/mattroe/new-music-fridays/issues/17) history corpus.)
 
 Two ways to add a reaction, both landing in the same file:
 
@@ -219,12 +219,13 @@ Keep `config/feedback.md` to taste signal about the picks only; questions and un
 
 Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. Durable per-run persistence ([#17](https://github.com/mattroe/new-music-fridays/issues/17)) has shipped — see [Durable run history](#durable-run-history) — so the data-driven work below now has a corpus to build on. The current set, in suggested tackle order (roughly by dependency; the validation and rubric work come last because they need several weeks of accumulated runs to mine):
 
-1. [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: the *explicit* signal has shipped (see [Providing feedback](#providing-feedback)); what remains is the *implicit* "did I actually play it?" lookback, which reads picks back from the #17 history
-2. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model + effort choice (one-week A/B); independent of the rest, so settle it early
-3. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
-4. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup (extend the pre-public gitignore audit to the history paths; run data lives only in the private state repo)
-5. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)
-6. [#7](https://github.com/mattroe/new-music-fridays/issues/7) — refine the "fit to taste" rubric in `SKILL.md` (needs the #17 corpus)
+1. [#24](https://github.com/mattroe/new-music-fridays/issues/24) — verify the just-shipped *explicit* feedback loop (see [Providing feedback](#providing-feedback)) end-to-end in a cloud run; gates relying on it
+2. [#25](https://github.com/mattroe/new-music-fridays/issues/25) — feedback loop, *implicit* half: a Last.fm "did I actually play it?" lookback that reads prior picks back from the #17 history
+3. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model + effort choice (one-week A/B); independent of the rest, so settle it early
+4. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
+5. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup (extend the pre-public gitignore audit to the history paths; run data lives only in the private state repo)
+6. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)
+7. [#7](https://github.com/mattroe/new-music-fridays/issues/7) — refine the "fit to taste" rubric in `SKILL.md` (needs the #17 corpus)
 
 ## Layout
 
