@@ -146,6 +146,23 @@ if (settingsRaw !== null) {
   }
 }
 
+// 8. publish-digest.sh (#27) runs on every production run. Existence is covered
+//    by the path scan in check 1; here we assert the two invariants the redaction
+//    and safety boundary rest on — the production-only guard (so test/fast runs
+//    can never write a digest) and the push to the state repo.
+const publishDigest = slurp("scripts/publish-digest.sh");
+check(publishDigest !== null, "scripts/publish-digest.sh is missing");
+if (publishDigest !== null) {
+  check(
+    /mode.*!=.*"production"|"production".*!=.*mode/.test(publishDigest),
+    "scripts/publish-digest.sh dropped its production-only guard",
+  );
+  check(
+    publishDigest.includes("git push"),
+    "scripts/publish-digest.sh no longer pushes to the state repo",
+  );
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);

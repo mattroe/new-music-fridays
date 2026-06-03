@@ -238,7 +238,17 @@ Then append the record to the durable history and capture the outcome:
 
     bash scripts/history.sh append <run_dir>/history-record.json
 
-Parse its `key=value` output. `history_persisted=true` (with `state_dir=…`) means it committed and pushed to the state repo. `history_persisted=false` carries a `reason=…` (`state-repo-not-found`, `git-push-failed`, `invalid-record`, `non-production-skipped`, or `record-file-missing`). On failure, set `<persist_note>` to a short string like `"history not persisted: <reason>"` for `meta.json.notes`; on success leave it unset. Either way, continue to Finalize.
+Parse its `key=value` output. `history_persisted=true` (with `state_dir=…`) means it committed and pushed to the state repo. `history_persisted=false` carries a `reason=…` (`state-repo-not-found`, `git-push-failed`, `invalid-record`, `non-production-skipped`, or `record-file-missing`). On failure, set `<persist_note>` to a short string like `"history not persisted: <reason>"` for `meta.json.notes`; on success leave it unset. Either way, continue to the digest-publish step.
+
+## Publish the rendered digest
+
+**Production mode only — skip this entire step in test and fast mode** (don't write to the durable store). Like history persistence, the email has already been sent, so nothing here can affect delivery, and the whole step is **best-effort**: a failure is logged into `meta.json.notes` and the run still finishes successfully.
+
+This persists a durable, downloadable copy of the digest to the same private state repo the history uses — a cloud routine session exposes no file-download surface, so committing the rendered bodies to Git is the only artifact that survives the discarded VM. It runs every production run alongside the history append; if no state repo is wired up, the step is a no-op (`state-repo-not-found`) and the run carries on. **Publish the rendered digest only** — the rendered `email.html`/`email.txt` carry none of the raw Last.fm data, listening profile, play counts, or recipient address that the full `runs/` tree does, so this keeps the same redaction boundary as the history record (see CLAUDE.md and #27). Run:
+
+    bash scripts/publish-digest.sh <mode> <today> <run_dir>/<fname_prefix>email.html <run_dir>/<fname_prefix>email.txt
+
+Parse its `key=value` output. `digest_published=true` (with `state_dir=…` and `digest_path=…`) means it copied the bodies into `digests/<today>/` and pushed to the state repo. `digest_published=false` carries a `reason=…` (`non-production-skipped`, `digest-file-missing`, `state-repo-not-found`, or `git-push-failed`). On failure, set `<digest_note>` to a short string like `"digest not published: <reason>"` for `meta.json.notes`; on success leave it unset. Either way, continue to Finalize. The script also refuses any non-`production` mode as a mechanical safeguard, so a stray flag on a test/fast run can never write a digest.
 
 ## Finalize run log
 
@@ -281,7 +291,7 @@ Write `<run_dir>/<fname_prefix>meta.json`:
 }
 ```
 
-`mode` is the string `"production"`, `"test"`, or `"fast"` from the run-state step. `notes` is `[]` unless something noteworthy happened — in particular, include `<persist_note>` (from **Persist the run record**) here when history persistence failed, e.g. `"notes": ["history not persisted: git-push-failed"]`. `tokens` is always `null`: a routine run can't read its own token usage from inside the run. Review per-run usage in the run's session transcript, and aggregate spend at claude.ai/settings/usage.
+`mode` is the string `"production"`, `"test"`, or `"fast"` from the run-state step. `notes` is `[]` unless something noteworthy happened — in particular, include `<persist_note>` (from **Persist the run record**) and `<digest_note>` (from **Publish the rendered digest**) here when those steps failed, e.g. `"notes": ["history not persisted: git-push-failed"]`. `tokens` is always `null`: a routine run can't read its own token usage from inside the run. Review per-run usage in the run's session transcript, and aggregate spend at claude.ai/settings/usage.
 
 ## Capturing feedback (post-run)
 
