@@ -18,3 +18,7 @@ B) DISCOVERY PICKS
 
 
 {{second_look}}
+
+
+--
+React to these picks: open this run in Claude (Routines > New Music Fridays > Runs > this run) and tell it what you loved or want less of — it logs your note to steer next week.
