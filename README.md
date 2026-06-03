@@ -174,12 +174,15 @@ If you don't want any email at all, replace the Send step in `SKILL.md` with one
 
 ## What's next
 
-Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set:
+Forward-looking work lives in [open issues](https://github.com/mattroe/new-music-fridays/issues), not in the repo. The current set, in suggested tackle order — roughly by dependency, with persistence first because the data-driven validation and rubric work need several weeks of accumulated runs to mine (which is also why those come last):
 
-- [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer next week's picks
-- [#7](https://github.com/mattroe/new-music-fridays/issues/7) — concrete "fit to taste" rubric in `SKILL.md`
-- [#8](https://github.com/mattroe/new-music-fridays/issues/8) — revisit model + effort choice once cost data has accumulated
-- [#9](https://github.com/mattroe/new-music-fridays/issues/9) — polish distribution after a first external user follows the README
+1. [#17](https://github.com/mattroe/new-music-fridays/issues/17) — persist a distilled per-run record durably (private state repo); the foundation the data-driven work below builds on
+2. [#4](https://github.com/mattroe/new-music-fridays/issues/4) — feedback loop: explicit + implicit signal to steer weekly picks (builds on #17)
+3. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model + effort choice (one-week A/B); independent of the rest, so settle it early
+4. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
+5. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup
+6. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)
+7. [#7](https://github.com/mattroe/new-music-fridays/issues/7) — refine the "fit to taste" rubric in `SKILL.md` (needs the #17 corpus)
 
 ## Layout
 
