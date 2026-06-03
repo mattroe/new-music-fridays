@@ -107,22 +107,35 @@ validate() {
     return 1
   fi
 
-  local from to subject fail=0
+  local from to subject method fail=0
   from="$(yaml_value from "$DELIVERY")"
   to="$(yaml_value to "$DELIVERY")"
   subject="$(yaml_value subject_template "$DELIVERY")"
+  method="$(yaml_value method "$DELIVERY")"
+  method="${method:-resend}"
 
   echo "Parsed $DELIVERY:"
   printf '  from:             %s\n' "${from:-<empty>}"
   printf '  to:               %s\n' "${to:-<empty>}"
   printf '  subject_template: %s\n' "${subject:-<empty>}"
+  printf '  method:           %s\n' "$method"
   echo
 
-  # from: present, a plain address (Resend rejects "Name <email>" wrappers),
-  # email-shaped, and not the example placeholder.
+  # method: resend (default) or none. An unknown value would silently misroute.
+  if [[ "$method" != "resend" && "$method" != "none" ]]; then
+    echo "FAIL method: must be 'resend' or 'none', got '$method'" >&2; fail=1
+  fi
+  # "none" delivers only the published file, so warn if no state repo is in reach.
+  if [[ "$method" == "none" ]]; then
+    info "method: none — the digest is delivered only as the file published to your state repo; set that up (see docs/delivery.md) or the digest survives only in the run transcript"
+  fi
+
+  # from: present, email-shaped, and not the example placeholder. The "Name
+  # <email>" wrapper is rejected only under resend (Resend's API rejects it);
+  # under none the from is just display text in the rendered digest.
   if [[ -z "$from" ]]; then
     echo "FAIL from: empty" >&2; fail=1
-  elif [[ "$from" == *"<"* || "$from" == *">"* ]]; then
+  elif [[ "$method" == "resend" && ( "$from" == *"<"* || "$from" == *">"* ) ]]; then
     echo "FAIL from: Resend rejects \"Name <email>\" wrappers — use a plain address" >&2; fail=1
   elif [[ "$from" != *"@"*.* ]]; then
     echo "FAIL from: doesn't look like an email address" >&2; fail=1

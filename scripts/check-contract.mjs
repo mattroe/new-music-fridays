@@ -87,24 +87,24 @@ if (lastfm !== null) {
   }
 }
 
-// 4. config/delivery.yaml.example documents from/to/subject_template, and the
-//    subject template keeps its {date} token.
+// 4. config/delivery.yaml.example documents from/to/subject_template plus the
+//    optional method switch, and the subject template keeps its {date} token.
 const example = slurp("config/delivery.yaml.example");
 check(example !== null, "config/delivery.yaml.example is missing");
 if (example !== null) {
-  for (const key of ["from:", "to:", "subject_template:"]) {
+  for (const key of ["from:", "to:", "subject_template:", "method:"]) {
     check(example.includes(key), `config/delivery.yaml.example is missing "${key}"`);
   }
   const line = (example.match(/^\s*subject_template:.*$/m) ?? [""])[0];
   check(line.includes("{date}"), "config/delivery.yaml.example subject_template must contain the {date} token");
 }
 
-// 5. write-delivery.sh emits the same three keys, so the file it materializes is
-//    exactly what SKILL.md validates and reads.
+// 5. write-delivery.sh emits the same keys (including the method switch), so the
+//    file it materializes is exactly what SKILL.md validates and reads.
 const writeDelivery = slurp("scripts/write-delivery.sh");
 check(writeDelivery !== null, "scripts/write-delivery.sh is missing");
 if (writeDelivery !== null) {
-  for (const key of ["from:", "to:", "subject_template:"]) {
+  for (const key of ["from:", "to:", "subject_template:", "method:"]) {
     check(writeDelivery.includes(key), `scripts/write-delivery.sh no longer emits "${key}"`);
   }
 }

@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -94,4 +94,36 @@ test("an unknown subcommand prints usage and exits 2", async () => {
   const { code, stderr } = await runBash(["bogus"]);
   assert.equal(code, 2);
   assert.match(stderr, /usage:.*state-repo/);
+});
+
+// validate is method-aware (the file-only delivery path). Write a delivery.yaml
+// into a temp cwd and run `validate` there.
+function withDelivery(yaml) {
+  const dir = mkdtempSync(join(tmpdir(), "nmf-validate-"));
+  mkdirSync(join(dir, "config"), { recursive: true });
+  writeFileSync(join(dir, "config/delivery.yaml"), yaml);
+  return dir;
+}
+
+test("validate rejects an unknown method", async () => {
+  const dir = withDelivery('from: a@b.co\nto: c@d.co\nsubject_template: "x {date}"\nmethod: bogus\n');
+  const { code, stderr } = await runBash(["validate"], { cwd: dir });
+  assert.equal(code, 1);
+  assert.match(stderr, /method: must be 'resend' or 'none'/);
+});
+
+test("validate under method: none relaxes the Resend wrapper rule", async () => {
+  // A "Name <email>" from is rejected under resend but fine under none (it's
+  // just display text in the rendered digest, not a Resend API argument).
+  const dir = withDelivery('from: Me <me@b.co>\nto: c@d.co\nsubject_template: "x {date}"\nmethod: none\n');
+  const { code, stdout } = await runBash(["validate"], { cwd: dir });
+  assert.equal(code, 0);
+  assert.match(stdout, /method:\s+none/);
+});
+
+test("validate keeps the Resend wrapper rule under the default method", async () => {
+  const dir = withDelivery('from: Me <me@b.co>\nto: c@d.co\nsubject_template: "x {date}"\n');
+  const { code, stderr } = await runBash(["validate"], { cwd: dir });
+  assert.equal(code, 1);
+  assert.match(stderr, /Name <email>/);
 });
