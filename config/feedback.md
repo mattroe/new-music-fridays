@@ -8,5 +8,4 @@
      "Providing feedback", and SKILL.md, "Capturing feedback (post-run)". -->
 
 ## 2026-06-05
-- Loved Big Thief — Double Infinity. More along that axis.
-- Three weeks of shoegaze — pull back.
+- Bill Orcutt's latest album was great — more solo / exploratory guitar like that.

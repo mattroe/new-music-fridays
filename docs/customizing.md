@@ -16,8 +16,7 @@ Two ways to add a reaction, both landing in the same file:
 - **Edit it directly.** Append a bullet under a `## YYYY-MM-DD` heading and commit:
   ```markdown
   ## 2026-06-05
-  - Loved Big Thief — Double Infinity. More along that axis.
-  - Three weeks of shoegaze — pull back.
+  - Bill Orcutt's latest album was great — more solo / exploratory guitar like that.
   ```
 - **Tell the run.** Reopen the week's run (Routines → New Music Fridays → Runs → that run) and react in the conversation — the email footer reminds you of this. The session distills the steer, shows you the exact line it will add, and after you confirm, opens a PR against `config/feedback.md` for you to merge (one click). It commits to a `claude/feedback-*` branch, never straight to `main` — the merge is a human gate that keeps the production routine read-only on the repo. See `SKILL.md`'s "Capturing feedback (post-run)" for the protocol.
 
