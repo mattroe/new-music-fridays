@@ -63,7 +63,10 @@ jobs:
 
           # Guard: only Dependabot's own PRs, identified by BOTH the bot author
           # and the dependabot/ branch prefix. Never touch anything else.
-          if [ "$author" != "dependabot[bot]" ]; then
+          # `gh pr list --json author` reports the bot login as 'app/dependabot';
+          # the event payload's actor.login is 'dependabot[bot]'. Accept either so
+          # the guard recognizes Dependabot regardless of which form we read.
+          if [ "$author" != "app/dependabot" ] && [ "$author" != "dependabot[bot]" ]; then
             echo "PR #$number author is '$author', not Dependabot; skipping."
             exit 0
           fi
