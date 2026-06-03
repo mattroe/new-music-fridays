@@ -19,12 +19,13 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RUN_STATE = join(ROOT, "scripts/run-state.sh");
 const WRITE_DELIVERY = join(ROOT, "scripts/write-delivery.sh");
 const HISTORY = join(ROOT, "scripts/history.sh");
+const FEEDBACK = join(ROOT, "scripts/feedback.sh");
 
 // Start from the real env (PATH etc.) but clear the NMF_* vars so each case sets
 // a known run mode regardless of the developer's shell.
 function baseEnv(overrides = {}) {
   const env = { ...process.env };
-  for (const k of ["NMF_TEST", "NMF_FROM", "NMF_TO", "NMF_SUBJECT", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE"]) delete env[k];
+  for (const k of ["NMF_TEST", "NMF_FROM", "NMF_TO", "NMF_SUBJECT", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE", "NMF_FEEDBACK_FILE"]) delete env[k];
   return { ...env, ...overrides };
 }
 
@@ -239,4 +240,59 @@ test("history append is fail-soft when the state repo is absent (never blocks th
   assert.equal(code, 0);
   assert.match(stdout, /history_persisted=false/);
   assert.match(stdout, /reason=state-repo-not-found/);
+});
+
+// --- feedback.sh (#35 personal taste file, read from the private state repo) ---
+// feedback.md was relocated out of the public code repo into the state repo. The
+// run reads it via `feedback.sh read`. These cases use a throwaway state dir
+// (NMF_STATE_DIR) so discovery is bypassed and nothing touches a real repo, and
+// confirm the read prints the file and is fail-soft when the repo/file is absent.
+
+// A directory with a seeded history.jsonl (so discovery keys on it, like the real
+// state repo) plus a feedback.md. Not a git repo — feedback.sh only ever reads.
+function makeFeedbackStateDir(feedbackContents) {
+  const stateDir = mkdtempSync(join(tmpdir(), "nmf-fb-"));
+  writeFileSync(join(stateDir, "history.jsonl"), "");
+  if (feedbackContents !== null) writeFileSync(join(stateDir, "feedback.md"), feedbackContents);
+  return stateDir;
+}
+
+test("feedback read prints the state repo's feedback.md verbatim", async () => {
+  const body = "## 2026-06-05\n- more solo guitar like the Bill Orcutt pick\n";
+  const stateDir = makeFeedbackStateDir(body);
+  const { code, stdout } = await runBash(FEEDBACK, ["read"], { env: baseEnv({ NMF_STATE_DIR: stateDir }) });
+  assert.equal(code, 0);
+  assert.equal(stdout, body);
+});
+
+test("feedback read is fail-soft when the feedback file is absent (fresh install)", async () => {
+  const stateDir = makeFeedbackStateDir(null);
+  const { code, stdout } = await runBash(FEEDBACK, ["read"], { env: baseEnv({ NMF_STATE_DIR: stateDir }) });
+  assert.equal(code, 0);
+  assert.match(stdout, /# feedback: no feedback on file yet/);
+});
+
+test("feedback read is fail-soft when the state repo is absent (never blocks the run)", async () => {
+  const { code, stdout } = await runBash(FEEDBACK, ["read"], {
+    env: baseEnv({ NMF_STATE_DIR: join(tmpdir(), "nmf-fb-absent-xyz") }),
+  });
+  assert.equal(code, 0);
+  assert.match(stdout, /state repo not found/);
+});
+
+test("feedback read honors NMF_FEEDBACK_FILE for the filename", async () => {
+  const stateDir = makeFeedbackStateDir(null);
+  const body = "## 2026-06-05\n- alt feedback file\n";
+  writeFileSync(join(stateDir, "taste.md"), body);
+  const { code, stdout } = await runBash(FEEDBACK, ["read"], {
+    env: baseEnv({ NMF_STATE_DIR: stateDir, NMF_FEEDBACK_FILE: "taste.md" }),
+  });
+  assert.equal(code, 0);
+  assert.equal(stdout, body);
+});
+
+test("feedback rejects an unknown subcommand", async () => {
+  const { code, stderr } = await runBash(FEEDBACK, ["append"], { env: baseEnv() });
+  assert.equal(code, 2);
+  assert.match(stderr, /usage/i);
 });

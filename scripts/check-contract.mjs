@@ -163,19 +163,39 @@ if (publishDigest !== null) {
   );
 }
 
-// 9. .gitignore keeps every run-data path ignored (#17/#19). Run history and
-//    rendered digests live in a separate PRIVATE state repo; this is the public
-//    code repo. These paths must stay ignored here so listening data, picks, or a
-//    recipient address can never be committed upstream — by a refactor or by
-//    accident. Each entry is matched as a whole gitignore line (anchored, so
-//    "runs/" won't match a "runs/keep.md" exception line).
+// 9. .gitignore keeps every run-data path ignored (#17/#19/#35). Run history,
+//    rendered digests, and the personal feedback file live in a separate PRIVATE
+//    state repo; this is the public code repo. These paths must stay ignored here
+//    so listening data, picks, a recipient address, or personal taste reactions
+//    can never be committed upstream — by a refactor or by accident. Each entry is
+//    matched as a whole gitignore line (anchored, so "runs/" won't match a
+//    "runs/keep.md" exception line).
 const gitignore = slurp(".gitignore");
 check(gitignore !== null, ".gitignore is missing");
 if (gitignore !== null) {
   const lines = new Set(gitignore.split(/\r?\n/).map((l) => l.trim()));
-  for (const path of ["config/delivery.yaml", "runs/", "history.jsonl", "history/", "digests/"]) {
-    check(lines.has(path), `.gitignore must keep run-data path "${path}" ignored (#17/#19)`);
+  for (const path of ["config/delivery.yaml", "config/feedback.md", "runs/", "history.jsonl", "history/", "digests/"]) {
+    check(lines.has(path), `.gitignore must keep run-data path "${path}" ignored (#17/#19/#35)`);
   }
+}
+
+// 10. feedback.sh (#35) reads the personal feedback file from the private state
+//     repo. Existence is covered by the path scan in check 1; here we assert the
+//     two invariants the trust and fail-soft boundary rest on — it stays READ-ONLY
+//     (never writes/pushes, the property that lets capture stay a human-gated PR)
+//     and emits the `# feedback:` fail-soft comment so a fresh install with no
+//     feedback never blocks the run.
+const feedback = slurp("scripts/feedback.sh");
+check(feedback !== null, "scripts/feedback.sh is missing");
+if (feedback !== null) {
+  check(
+    !/git\s+(push|commit|add)\b/.test(feedback),
+    "scripts/feedback.sh must stay read-only — it must never git add/commit/push",
+  );
+  check(
+    feedback.includes("# feedback:"),
+    "scripts/feedback.sh dropped its `# feedback:` fail-soft comment",
+  );
 }
 
 if (failures.length > 0) {

@@ -9,15 +9,17 @@
 
 ## Providing feedback
 
-The digest steers toward your taste over time from a single trusted file, `config/feedback.md` — append-only prose where you react to each week's picks (what you loved, want more of, or want pulled back, by artist, genre, or scene). Each Friday run reads it before searching, weights the last ~12 weeks most heavily, biases its research toward what you've liked and away from what you haven't, and notes the influence in that run's `candidates.md`. An empty or missing file is fine — runs proceed normally until you start adding reactions. (This is the *explicit* half of the feedback loop; the implicit "did I actually play it?" signal is tracked in [#25](https://github.com/mattroe/new-music-fridays/issues/25), built on the [#17](https://github.com/mattroe/new-music-fridays/issues/17) history corpus.)
+The digest steers toward your taste over time from a single trusted file, `feedback.md` — append-only prose where you react to each week's picks (what you loved, want more of, or want pulled back, by artist, genre, or scene). Each Friday run reads it before searching (via `scripts/feedback.sh read`), weights the last ~12 weeks most heavily, biases its research toward what you've liked and away from what you haven't, and notes the influence in that run's `candidates.md`. An empty or missing file is fine — runs proceed normally until you start adding reactions. (This is the *explicit* half of the feedback loop; the implicit "did I actually play it?" signal is tracked in [#25](https://github.com/mattroe/new-music-fridays/issues/25), built on the [#17](https://github.com/mattroe/new-music-fridays/issues/17) history corpus.)
 
-Two ways to add a reaction, both landing in the same file:
+**Where it lives.** `feedback.md` holds personal taste reactions, so it lives in your **private state repo** (`new-music-fridays-state`) — the same repo that holds run history and published digests — not in this public code repo. This repo carries only `config/feedback.example.md` (the format; copy it into the state repo as `feedback.md` to start). The state repo is the optional persistent store from [setup](setup.md#durable-run-history); if you haven't wired one up, runs still send normally, just without feedback steering.
 
-- **Edit it directly.** Append a bullet under a `## YYYY-MM-DD` heading and commit:
+Two ways to add a reaction, both landing in the same state-repo file:
+
+- **Edit it directly.** In the state repo, append a bullet under a `## YYYY-MM-DD` heading and commit:
   ```markdown
   ## 2026-06-05
   - Bill Orcutt's latest album was great — more solo / exploratory guitar like that.
   ```
-- **Tell the run.** Reopen the week's run (Routines → New Music Fridays → Runs → that run) and react in the conversation — the email footer reminds you of this. The session distills the steer, shows you the exact line it will add, and after you confirm, opens a PR against `config/feedback.md` for you to merge (one click). It commits to a `claude/feedback-*` branch, never straight to `main` — the merge is a human gate that keeps the production routine read-only on the repo. See `SKILL.md`'s "Capturing feedback (post-run)" for the protocol.
+- **Tell the run.** Reopen the week's run (Routines → New Music Fridays → Runs → that run) and react in the conversation — the email footer reminds you of this. The session distills the steer, shows you the exact line it will add, and after you confirm, opens a PR against the **state repo's** `feedback.md` for you to merge (one click). It commits to a `claude/feedback-*` branch and the merge is a human gate. Note the tradeoff ([#35](https://github.com/mattroe/new-music-fridays/issues/35)): the state repo allows unrestricted pushes (so the routine can append history), so this gate is convention rather than branch protection — accepted as low residual risk. See `SKILL.md`'s "Capturing feedback (post-run)" for the protocol.
 
-Keep `config/feedback.md` to taste signal about the picks only; questions and unrelated asks stay in conversation.
+Keep `feedback.md` to taste signal about the picks only; questions and unrelated asks stay in conversation.
