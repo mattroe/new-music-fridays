@@ -67,7 +67,7 @@ you need detail on run modes or env vars).
        Repository: <my repo from step 3>
        Prompt:     Follow the instructions in SKILL.md at the repository root
                    exactly. It is the runtime prompt for this routine.
-       Model:      Opus
+       Model:      Sonnet
        Schedule:   weekly, Friday morning (a time still on Friday in UTC)
        Connectors: enable Last.fm
        Env vars:   RESEND_API_KEY (plus NMF_FROM / NMF_TO / NMF_SUBJECT if I chose
@@ -122,7 +122,7 @@ Optional tuning:
 3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) (or `/schedule` from the CLI):
    - **Repository:** the repo from step 2.
    - **Prompt:** `Follow the instructions in SKILL.md at the repository root exactly. It is the runtime prompt for this routine.`
-   - **Model:** Opus for the best curation (or Sonnet/Haiku for cheaper, faster runs). The `model:`/`effort:` frontmatter in `SKILL.md` is ignored by routines — pick the model here.
+   - **Model:** Sonnet is the default — sufficient curation for this digest at a fraction of the token cost (Opus is available for deeper curation, Haiku for cheaper/faster runs). The `model:` frontmatter in `SKILL.md` is ignored by routines — pick the model here. (There's no effort control on a routine.)
    - **Schedule:** Weekly → Friday, a morning time. Routines run on a UTC-based clock, so choose a time that still falls on Friday in UTC; otherwise the release window (`last Friday → this Friday`) can shift by a day.
    - **Connectors:** enable Last.fm.
    - **Environment variables:** set `RESEND_API_KEY` (a Resend **Sending-access** key for your domain) so `scripts/send-email.mjs` can send. For the keep-it-out-of-git option (step 2), also add `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT`. Leave the environment's **Setup script** empty — delivery config is written during the run, not at setup.
@@ -196,7 +196,7 @@ Zero-setup fallback: open the run from the routines list and copy the rendered b
 - `config/review-sources.yaml` — the review outlets whose endorsements decorate picks, plus the exact citation strings allowed in the email.
 - `config/lastfm.yaml` — tune query periods, top-artist limits, and the similar-artist fan-out depth.
 - `templates/email.html` and `templates/email.txt` — edit the email scaffold and copy. Keep the `{{placeholders}}` aligned across both files.
-- **Model + effort.** The model is set on the routine itself — Opus for the best curation, or Sonnet/Haiku for cheaper, faster runs at the cost of curation depth. The `model:`/`effort:` frontmatter in `SKILL.md` is ignored by routines; it documents the intended default (see the [Claude Code skills docs](https://code.claude.com/docs/en/skills) for what the fields mean).
+- **Model.** The model is set on the routine itself — Sonnet is the default (sufficient curation for this digest at a fraction of the token cost), with Opus available for deeper curation and Haiku for cheaper, faster runs. The `model:` frontmatter in `SKILL.md` is ignored by routines; it documents the intended default (see the [Claude Code skills docs](https://code.claude.com/docs/en/skills) for what the field means). Routines expose no effort control, so there's nothing to set there.
 - `SKILL.md` prompt body — the orchestration itself is editable. Add a section, tighten the rubric, or change what gets logged.
 
 ## Providing feedback
@@ -233,7 +233,7 @@ Forward-looking work lives in [open issues](https://github.com/mattroe/new-music
 
 1. [#24](https://github.com/mattroe/new-music-fridays/issues/24) — verify the just-shipped *explicit* feedback loop (see [Providing feedback](#providing-feedback)) end-to-end in a cloud run; gates relying on it
 2. [#25](https://github.com/mattroe/new-music-fridays/issues/25) — feedback loop, *implicit* half: a Last.fm "did I actually play it?" lookback that reads prior picks back from the #17 history
-3. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model + effort choice (one-week A/B); independent of the rest, so settle it early
+3. [#8](https://github.com/mattroe/new-music-fridays/issues/8) — evaluate the model choice (one-week A/B); independent of the rest, so settle it early
 4. [#9](https://github.com/mattroe/new-music-fridays/issues/9) — independent run-through: set up from the README alone and report friction
 5. [#19](https://github.com/mattroe/new-music-fridays/issues/19) — open-source the repo: license, rulesets, and pre-public cleanup (extend the pre-public gitignore audit to the history paths; run data lives only in the private state repo)
 6. [#6](https://github.com/mattroe/new-music-fridays/issues/6) — extend pre-send validation to cover output shape (data-driven half; needs the #17 corpus)

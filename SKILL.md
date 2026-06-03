@@ -1,13 +1,12 @@
 ---
 name: new-music-fridays
 description: Provide me a new music summary weekly based on my listening history
-model: opus
-effort: max
+model: sonnet
 ---
 
 This routine produces my "New Music Friday" summary covering new music released in the last calendar week. The release window is **the 7 days following the most recent prior Friday, up to and including today** — release dates strictly **after** the prior Friday and ≤ `<today>`. On a Friday production run this resolves to `(last Friday, this Friday]` = exactly 7 days. On a non-Friday test or fast run it still excludes the prior Friday's NMF releases so the test surfaces this week's slate.
 
-> **Runtime note.** This prompt runs as an Anthropic-hosted cloud routine. The model and effort are set on the routine itself, so the `model:`/`effort:` frontmatter above is informational. The VM is discarded after each run, so `runs/<date>/` artifacts are ephemeral — the sent email and the run's session transcript are the durable record, and `meta.json.tokens` is always `null` (a routine run can't read its own token usage; review it in the run's session transcript instead).
+> **Runtime note.** This prompt runs as an Anthropic-hosted cloud routine. The model is set on the routine itself, so the `model:` frontmatter above is informational (there is no effort control on a routine). The VM is discarded after each run, so `runs/<date>/` artifacts are ephemeral — the sent email and the run's session transcript are the durable record, and `meta.json.tokens` is always `null` (a routine run can't read its own token usage; review it in the run's session transcript instead).
 
 ## Load tools
 
