@@ -4,8 +4,8 @@
      older ones are soft context. Keep it to taste signal about the picks only —
      what to hear more or less of, loved or disliked, by artist, genre, or scene.
      Two ways to add to it: edit this file directly, or react to a run in its
-     Claude session (it opens a PR for you to merge). See README.md, "Providing
-     feedback", and SKILL.md, "Capturing feedback (post-run)". -->
+     Claude session (it opens a PR for you to merge). See docs/customizing.md,
+     "Providing feedback", and SKILL.md, "Capturing feedback (post-run)". -->
 
 ## 2026-06-05
 - Loved Big Thief — Double Infinity. More along that axis.

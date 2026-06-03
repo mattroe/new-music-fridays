@@ -7,7 +7,7 @@
 # (see CLAUDE.md), that deterministic logic belongs in a script, not in prose the
 # bootstrap prompt has to reinvent each run. The browser-only steps (Last.fm
 # connector OAuth, the Resend account/DNS, creating the routine) can't be
-# scripted — the bootstrap prompt in README.md hands those off with exact values.
+# scripted — the bootstrap prompt in docs/setup.md hands those off with exact values.
 #
 # Usage:
 #   bash scripts/bootstrap.sh preflight   # report toolchain + repo + config readiness
