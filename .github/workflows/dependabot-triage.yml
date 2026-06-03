@@ -1,0 +1,95 @@
+name: Dependabot triage
+
+# Triages Dependabot PRs by CI outcome, no human needed for the common case.
+# The only versioned deps are CI's own GitHub Actions pins (see
+# .github/dependabot.yml), so CI itself is the safety signal:
+#
+#   CI passed  -> squash-merge (a green run exercises the bumped action)
+#   CI failed  -> assign to the repo owner + 'needs-review' label + a comment
+#
+# Nothing is ever auto-closed: deciding a dependency bump is "irrelevant" is a
+# judgment call that could silently drop a security update, so the rare close
+# stays human — the failed/assigned PRs surface on the owner's radar to triage.
+#
+# Why workflow_run and not the pull_request event: a Dependabot-triggered
+# `pull_request` run gets a read-only GITHUB_TOKEN and can neither merge nor
+# label. workflow_run fires after CI finishes and runs in the trusted
+# main-branch context with a write token, without ever checking out or executing
+# the PR's code. It needs no branch protection and no repo-level auto-merge
+# setting (neither is available on this plan).
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write       # squash-merge
+  pull-requests: write  # merge / assign / label / comment on the PR
+  issues: write         # create the 'needs-review' label, set assignee/label
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    # Act only on a finished CI run that a pull request triggered. Gating on
+    # success|failure (not just `completed`) skips 'cancelled' runs, which the
+    # CI's cancel-in-progress concurrency produces and which aren't real failures.
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      (github.event.workflow_run.conclusion == 'success' ||
+       github.event.workflow_run.conclusion == 'failure')
+    steps:
+      - name: Triage the Dependabot PR by CI outcome
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          # Find the open PR whose head is this CI run's branch.
+          pr=$(gh pr list --repo "$REPO" --head "$HEAD_BRANCH" --state open \
+                 --json number,author,headRefName --jq '.[0] // empty')
+          if [ -z "$pr" ]; then
+            echo "No open PR for branch '$HEAD_BRANCH'; nothing to do."
+            exit 0
+          fi
+
+          number=$(echo "$pr" | jq -r '.number')
+          author=$(echo "$pr" | jq -r '.author.login')
+          branch=$(echo "$pr" | jq -r '.headRefName')
+
+          # Guard: only Dependabot's own PRs, identified by BOTH the bot author
+          # and the dependabot/ branch prefix. Never touch anything else.
+          if [ "$author" != "dependabot[bot]" ]; then
+            echo "PR #$number author is '$author', not Dependabot; skipping."
+            exit 0
+          fi
+          case "$branch" in
+            dependabot/*) ;;
+            *) echo "PR #$number branch '$branch' is not a dependabot branch; skipping."; exit 0 ;;
+          esac
+
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "CI passed — merging Dependabot PR #$number ($branch)."
+            gh pr merge "$number" --repo "$REPO" --squash --delete-branch
+            exit 0
+          fi
+
+          # CI failed: route to a human. Skip if already flagged so repeated CI
+          # failures don't pile up duplicate comments.
+          flagged=$(gh pr view "$number" --repo "$REPO" --json labels \
+                      --jq '.labels[].name' | grep -Fx needs-review || true)
+          if [ -n "$flagged" ]; then
+            echo "PR #$number already flagged needs-review; leaving as is."
+            exit 0
+          fi
+
+          echo "CI failed — assigning Dependabot PR #$number to $OWNER for review."
+          gh label create needs-review --repo "$REPO" --color FBCA04 --force \
+            --description "Dependabot PR with failing CI; needs a human"
+          gh pr edit "$number" --repo "$REPO" --add-assignee "$OWNER" --add-label needs-review
+          gh pr comment "$number" --repo "$REPO" --body \
+            "CI failed on this Dependabot update, so auto-merge was held and it's assigned to @${OWNER} for review. If the bump is irrelevant, close it; otherwise fix CI or merge manually."
