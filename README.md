@@ -77,7 +77,7 @@ you need detail on run modes or env vars).
      `api.resend.com`, and check "Also include default list of common package
      managers" (without it the send fails with a proxy 403).
    - Offer to also prep a second `new-music-fridays-test` routine — same repo,
-     no schedule, `NMF_FAST=1` — for safe smoke tests.
+     no schedule, `NMF_TEST=1` — for safe smoke tests.
    - Optional — durable run history: offer to create a private
      `new-music-fridays-state` repo (seed an empty `history.jsonl` on `main`), add
      it as a SECOND repo on the routine, and enable "Allow unrestricted branch
@@ -147,17 +147,17 @@ To enable it:
 2. **Add it as a second repository on the routine** (routines accept more than one repo; each is cloned from its default branch at the start of every run).
 3. **Enable "Allow unrestricted branch pushes" on the state repo only.** By default a routine can push only to `claude/`-prefixed branches, but it clones every repo from its default branch — so history written to a `claude/…` branch would never be read back the next week. Enabling unrestricted pushes lets `SKILL.md` commit `history.jsonl` straight to `main`, where next week's clone sees it. Leave your **code** repo on the safe default — the setting is per-repository, and only the pure-data state repo needs it. (Conservative alternative: keep the default and set `NMF_STATE_BRANCH=claude/history` so history accumulates on a long-lived `claude/` branch instead.)
 
-No extra secret or network-access change is needed: the routine's existing GitHub auth reaches any repo your account can see, and git traffic uses the dedicated GitHub proxy. `SKILL.md` reads the record back as untrusted data and refuses to persist anything but production runs, so test/fast runs never pollute the corpus.
+No extra secret or network-access change is needed: the routine's existing GitHub auth reaches any repo your account can see, and git traffic uses the dedicated GitHub proxy. `SKILL.md` reads the record back as untrusted data and refuses to persist anything but production runs, so test runs never pollute the corpus.
 
 ### Testing a fork
 
-To smoke-test without sending a production email, do a marked test run in the cloud. The run mode is driven by the `NMF_FAST` / `NMF_TEST` environment variables:
+To smoke-test without sending a production email, do a marked test run in the cloud. The run mode is driven by a single environment variable, `NMF_TEST`:
 
-- Create a second routine (e.g. `new-music-fridays-test`, mirroring the `new-music-fridays-state` suffix convention) bound to the same repo, with **no schedule**, and set `NMF_FAST=1` in its environment. Fire it with **Run now**.
-- `NMF_FAST=1` trims the slow parts — one Last.fm call, no web research, stub candidates — and finishes in roughly 2–5 minutes. The email arrives with subject `[TEST][FAST] New Music Friday - <date>`.
-- For the full Last.fm fan-out + web-research path without a production send, use `NMF_TEST=1` instead (`[TEST]` subject, same 5–15 minutes as a real run).
+- Create a second routine (e.g. `new-music-fridays-test`, mirroring the `new-music-fridays-state` suffix convention) bound to the same repo, with **no schedule**, and set `NMF_TEST=1` in its environment. Fire it with **Run now**.
+- `NMF_TEST=1` runs the full path — Last.fm fan-out, web research, feedback, Worth a Second Look — exactly as production does, on the same model, but with trimmed breadth so it finishes faster than a production run (subject `[TEST] New Music Friday - <date>`). It exercises every code path a `cloud-test`-labeled PR is likely to change.
+- **A test run doesn't email you.** It still POSTs to Resend end-to-end — exercising auth, the `api.resend.com` allowlist, and payload acceptance — but addressed to Resend's delivery-simulation sink (`delivered@resend.dev`), so the send returns a real `resend_message_id` (visible in the Resend dashboard) without landing in your inbox. Only production sends reach the real recipient.
 
-Verify from the run's session transcript and the delivered email. The scheduled Friday run has no env vars set, so it always runs in production mode regardless of any test routine.
+Verify from the run's session transcript: `<mode>` is `test`, `validation_passed: true`, `sent: true` with a `resend_message_id`, and both `html`/`text` bodies are populated. Review the rendered digest itself in the transcript (the `email.html`/`email.txt` bodies are logged there) or in the Resend dashboard — there's no inbox copy on a test run. The scheduled Friday run has no env var set, so it always runs in production mode regardless of any test routine.
 
 ### Local checks (CI)
 
@@ -184,7 +184,7 @@ Email is just the run's last step. The digest is fully rendered (`html` + `text`
 
 There's no "download this file" button on a cloud routine session, and the run's VM is discarded when it finishes — so anything under `runs/<today>/` is gone, and only **text** survives in the session transcript. The reliable way to get a durable, downloadable artifact is the same mechanism the run history already uses: **commit it to a Git repo.** A file committed to GitHub is permanent and downloadable (raw link, `git clone`, or the UI's download button).
 
-This is built in and automatic. If you've set up the private state repo for [Durable run history](#durable-run-history), every production run also calls `scripts/publish-digest.sh`, which copies the rendered **`email.html`/`email.txt`** into `digests/<date>/` in that repo and commits-and-pushes them — reusing the `scripts/history.sh` git plumbing, so there's no new secret or network-access change (GitHub auth and the dedicated git proxy already reach it). It's **best-effort** (a failed publish is logged to `meta.json.notes` and never blocks the send), **production-only** (test/fast runs are refused, so the repo stays clean), and a no-op if you haven't set up a state repo (nothing to publish to, the run just carries on). The push targets `main` by default — the state repo's "Allow unrestricted branch pushes" setting is what makes a clean "latest digest on `main`" possible; the conservative alternative is `NMF_STATE_BRANCH=claude/digests` (or whatever you already use for history), which lands the digests on a long-lived `claude/` branch instead.
+This is built in and automatic. If you've set up the private state repo for [Durable run history](#durable-run-history), every production run also calls `scripts/publish-digest.sh`, which copies the rendered **`email.html`/`email.txt`** into `digests/<date>/` in that repo and commits-and-pushes them — reusing the `scripts/history.sh` git plumbing, so there's no new secret or network-access change (GitHub auth and the dedicated git proxy already reach it). It's **best-effort** (a failed publish is logged to `meta.json.notes` and never blocks the send), **production-only** (test runs are refused, so the repo stays clean), and a no-op if you haven't set up a state repo (nothing to publish to, the run just carries on). The push targets `main` by default — the state repo's "Allow unrestricted branch pushes" setting is what makes a clean "latest digest on `main`" possible; the conservative alternative is `NMF_STATE_BRANCH=claude/digests` (or whatever you already use for history), which lands the digests on a long-lived `claude/` branch instead.
 
 It publishes the **rendered digest only** — not the whole `runs/<today>/` tree. Even though the state repo is private, it's deliberately scoped to distilled, redacted records: `SKILL.md`'s persist step never stores the raw Last.fm responses, listening profile, play counts, or recipient address (it's why `runs/` is gitignored). The rendered email bodies carry none of that, so they're safe to commit; the full run directory is not. Keeping raw listening data out of durable storage bounds the blast radius if the private repo's access is ever widened or leaked.
 
@@ -222,10 +222,10 @@ Keep `config/feedback.md` to taste signal about the picks only; questions and un
 - **Cloud routine aborts validation with empty `from`/`to`.** The fresh clone is missing `config/delivery.yaml` (it's gitignored). Either commit it to your private repo (`git add -f`), or set `NMF_FROM`/`NMF_TO`/`NMF_SUBJECT` env vars so `scripts/write-delivery.sh` (run by `SKILL.md`) materializes it. Don't put this in the environment's *setup script* — that runs before the repo is cloned, so `config/` doesn't exist yet.
 - **"Tool not found" errors during the run.** Confirm Last.fm is enabled on the routine's Connectors tab. The connector may register under a friendly name or a UUID prefix — `SKILL.md` matches by function-name suffix so either form works. (Resend isn't a tool — it's the `scripts/send-email.mjs` send.)
 - **Resend rejects the send.** Verify your sending domain's DNS has propagated (Resend's dashboard will tell you) and the `from` address matches a verified domain or Resend's sandbox sender. Resend rejects "Name &lt;email&gt;" display-name wrappers in `from`; pass a plain address.
-- **Run now sent a real production email.** That's expected — the production routine runs in production mode. For smoke tests, use a separate test routine with `NMF_FAST=1` (or `NMF_TEST=1`) set — see [Testing a fork](#testing-a-fork).
+- **Run now sent a real production email.** That's expected — the production routine runs in production mode. For smoke tests, use a separate test routine with `NMF_TEST=1` set — see [Testing a fork](#testing-a-fork).
 - **`meta.json` shows `sent: false`.** Either pre-send validation failed (look for the abort message in the run log) or the send call itself errored. The artifacts in the run directory are still useful for debugging.
 - **`meta.json` shows `tokens: null`.** Expected — a routine run can't read its own token usage. Review per-run usage in the run's session transcript, and aggregate spend at [claude.ai/settings/usage](https://claude.ai/settings/usage).
-- **Run history isn't being saved (`meta.json.notes` mentions `history not persisted`).** Persistence is best-effort and never blocks the send, so the email still arrives. Check the `reason`: `state-repo-not-found` means no state repo is set up or the routine isn't cloning it (see [Durable run history](#durable-run-history), or set `NMF_STATE_DIR`); `git-push-failed` usually means "Allow unrestricted branch pushes" isn't enabled on the state repo, so the push to `main` was rejected (enable it, or set `NMF_STATE_BRANCH=claude/history`). Only production runs persist — test/fast runs are excluded by design.
+- **Run history isn't being saved (`meta.json.notes` mentions `history not persisted`).** Persistence is best-effort and never blocks the send, so the email still arrives. Check the `reason`: `state-repo-not-found` means no state repo is set up or the routine isn't cloning it (see [Durable run history](#durable-run-history), or set `NMF_STATE_DIR`); `git-push-failed` usually means "Allow unrestricted branch pushes" isn't enabled on the state repo, so the push to `main` was rejected (enable it, or set `NMF_STATE_BRANCH=claude/history`). Only production runs persist — test runs are excluded by design.
 
 ## What's next
 
@@ -254,7 +254,7 @@ Forward-looking work lives in [open issues](https://github.com/mattroe/new-music
 - `scripts/history.sh` — reads recent run records back and appends one per production run to the private state repo's `history.jsonl` (best-effort; production-only; see [Durable run history](#durable-run-history))
 - `scripts/publish-digest.sh` — copies the rendered `email.html`/`email.txt` into `digests/<date>/` in the private state repo and pushes them each production run, for a durable downloadable artifact (best-effort; production-only; no-op without a state repo; see [Getting the digest as a downloadable file](#getting-the-digest-as-a-downloadable-file))
 - `scripts/bootstrap.sh` — first-time setup helper: `preflight` reports toolchain/repo/config readiness, `validate` sanity-checks `config/delivery.yaml` (used by the bootstrap prompt above)
-- `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html`, `test-email.html`, `fast-email.html`). Gitignored and ephemeral — not persisted after a cloud run.
+- `runs/<YYYY-MM-DD>/` — per-run artifacts; filename prefix indicates mode (`email.html`, `test-email.html`). Gitignored and ephemeral — not persisted after a cloud run.
 - `history.jsonl` — the durable per-run corpus; lives in a **separate private state repo**, never this one (gitignored here as defense-in-depth).
 
 ## Development
@@ -270,14 +270,14 @@ Changes are gated by two layers — set up both before modifying `SKILL.md`, the
 
 A second cloud routine (name it `new-music-fridays-test`, after the `new-music-fridays-state` suffix convention) on the same code repo with **no schedule**, so your Friday production send stays untouched while you iterate. Match your production routine's Repository, Prompt, Model, and Last.fm connector. The rest lives on this routine's **own cloud environment** (separate from production's, so configure it here — it isn't inherited) and on its triggers and permissions:
 
-- **Run-mode flag — required.** Set `NMF_TEST=1` (full Last.fm + web-research path; for changes to research logic, the rubric, or feedback handling) or `NMF_FAST=1` (a ~2–5 min plumbing run) as an environment variable. `NMF_FAST` wins if both are set. See [Testing a fork](#testing-a-fork) for what each mode does.
+- **Run-mode flag — required.** Set `NMF_TEST=1` as an environment variable. It runs the full Last.fm + web-research path (trimmed for speed) and marks the run as a test. See [Testing a fork](#testing-a-fork) for what it does.
 
-  > **This flag is what makes it a *test* routine.** With neither variable set, every run — **Run now** *and* the on-merge trigger below — executes in **production mode**: a real, unprefixed email *and* a persisted history record. The `[TEST]` subject and skipped persistence come entirely from the flag, so a test routine missing it is just a second production sender.
+  > **This flag is what makes it a *test* routine.** With it unset, every run — **Run now** *and* the on-merge trigger below — executes in **production mode**: a real, unprefixed email *and* a persisted history record. The `[TEST]` subject and skipped persistence come entirely from the flag, so a test routine missing it is just a second production sender.
 
 - **Other environment variables:** `RESEND_API_KEY` for the send, plus the delivery values `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` only if you use the env-var delivery path instead of a committed `config/delivery.yaml` (it's the same repo, so a committed one is already present).
-- **Network access (on its environment):** Custom + `api.resend.com` + "include default package managers" — test and fast runs still send through Resend, so without this the send fails with a proxy 403.
+- **Network access (on its environment):** Custom + `api.resend.com` + "include default package managers" — a test run still sends through Resend (to the sink address), so without this the send fails with a proxy 403.
 - **Trigger:** no schedule needed — fire it with **Run now**. If the form requires a trigger to save, attach an **API trigger** (a one-off `/fire` endpoint, nothing recurring) or the on-merge trigger below. `/schedule` from the CLI only creates *scheduled* routines, so add API or GitHub triggers from the web UI.
-- **State repo:** not needed. History persistence is production-only, so test/fast runs never touch it.
+- **State repo:** not needed. History persistence is production-only, so test runs never touch it.
 - **Permissions:** leave **Allow unrestricted branch pushes** off (the default) — test runs push nothing.
 
 Verify from the run's session transcript and the delivered, subject-prefixed email.

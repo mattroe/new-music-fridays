@@ -23,3 +23,14 @@ similar_artists:
   # fan out the top N of the 3month and overall charts
   top_n: 20
   limit: 50
+
+# Test-mode breadth trim (NMF_TEST=1). The on-merge smoke test runs the full
+# path on the production model, but the similar-artist fan-out — top_n x 2 charts,
+# the run's single biggest source of MCP round-trips — dominates wall-clock. In
+# test mode SKILL.md uses these reduced values and the 3month chart only (skips
+# the overall fan-out), so the path is still exercised with far fewer calls.
+# Production ignores this block.
+test_mode:
+  similar_artists:
+    top_n: 5
+    limit: 50

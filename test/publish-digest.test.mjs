@@ -19,7 +19,7 @@ const PUBLISH = join(ROOT, "scripts/publish-digest.sh");
 
 function baseEnv(overrides = {}) {
   const env = { ...process.env };
-  for (const k of ["NMF_FAST", "NMF_TEST", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE", "NMF_DIGEST_DIR"]) delete env[k];
+  for (const k of ["NMF_TEST", "NMF_STATE_DIR", "NMF_STATE_BRANCH", "NMF_HISTORY_FILE", "NMF_DIGEST_DIR"]) delete env[k];
   return { ...env, ...overrides };
 }
 
@@ -91,7 +91,7 @@ test("publish lands the rendered bodies on the state repo's main", async () => {
 });
 
 test("publish refuses a non-production mode (corpus stays clean)", async () => {
-  for (const mode of ["test", "fast", "", "bogus"]) {
+  for (const mode of ["test", "", "bogus"]) {
     const { base, stateDir } = await makeStateRepo();
     const { htmlFile, textFile } = writeRenderedBodies(base, mode === "" ? "test-" : `${mode}-`);
     const args = mode === "" ? ["", "2026-06-05", htmlFile, textFile] : [mode, "2026-06-05", htmlFile, textFile];
