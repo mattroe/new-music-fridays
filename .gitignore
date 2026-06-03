@@ -4,6 +4,13 @@ out/
 *.log
 config/delivery.yaml
 
+# Personal taste reactions (#35). The canonical feedback.md lives in the private
+# state repo (read at run time via scripts/feedback.sh), never this public code
+# repo — committing it would leak personal reactions and inherit them onto every
+# fork. The repo carries only config/feedback.example.md. Ignored here as
+# defense-in-depth so the real file can never be committed upstream by accident.
+config/feedback.md
+
 # Per-install Claude Code permissions — written locally while editing the repo,
 # never committed (the cloud routine uses its own Permissions tab instead).
 .claude/settings.local.json
