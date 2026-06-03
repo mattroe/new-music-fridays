@@ -1,5 +1,8 @@
 # new-music-fridays
 
+[![CI](https://github.com/mattroe/new-music-fridays/actions/workflows/ci.yml/badge.svg)](https://github.com/mattroe/new-music-fridays/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 A weekly "New Music Friday" digest based on your Last.fm listening history. Runs as an Anthropic-hosted Claude Code routine and emails a curated digest of new releases to you each Friday.
 
 ## How it works
@@ -41,3 +44,9 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 - `history.jsonl` — the durable per-run corpus; lives in a **separate private state repo**, never this one (gitignored here as defense-in-depth).
 
 For editing conventions and the change-gating workflow, see `CLAUDE.md` and [Testing and development](docs/testing.md).
+
+## License
+
+Copyright (C) 2026 Matt Roe. Licensed under the [GNU AGPL-3.0](LICENSE).
+
+You're free to run, study, modify, and share this; if you run a modified version as a network service, the AGPL asks that you offer your users its source too. A copyleft choice — derivatives stay open.

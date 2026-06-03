@@ -1,0 +1,10 @@
+# The project code is zero-dependency by design; the only versioned deps are the
+# GitHub Actions used by CI (actions/checkout + actions/setup-node). Dependabot
+# keeps those action pins current with weekly PRs so a stale or vulnerable action
+# version surfaces here instead of going unnoticed.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
