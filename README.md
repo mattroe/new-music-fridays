@@ -23,7 +23,8 @@ Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The pro
 - **[Customizing for your taste](docs/customizing.md)** — tune sources, templates, and model; and how to provide feedback that steers the picks.
 - **[Testing and development](docs/testing.md)** — cloud test runs, local CI checks, the test routine, and the optional on-merge smoke-test.
 - **[Troubleshooting](docs/troubleshooting.md)** — common failure modes and fixes.
-- **[What's next](docs/roadmap.md)** — forward-looking work, tracked in open issues.
+
+Forward-looking work lives in the repo's [open issues](https://github.com/mattroe/new-music-fridays/issues), not in a roadmap doc.
 
 ## Layout
 
