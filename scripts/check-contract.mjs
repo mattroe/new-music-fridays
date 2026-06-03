@@ -163,6 +163,21 @@ if (publishDigest !== null) {
   );
 }
 
+// 9. .gitignore keeps every run-data path ignored (#17/#19). Run history and
+//    rendered digests live in a separate PRIVATE state repo; this is the public
+//    code repo. These paths must stay ignored here so listening data, picks, or a
+//    recipient address can never be committed upstream — by a refactor or by
+//    accident. Each entry is matched as a whole gitignore line (anchored, so
+//    "runs/" won't match a "runs/keep.md" exception line).
+const gitignore = slurp(".gitignore");
+check(gitignore !== null, ".gitignore is missing");
+if (gitignore !== null) {
+  const lines = new Set(gitignore.split(/\r?\n/).map((l) => l.trim()));
+  for (const path of ["config/delivery.yaml", "runs/", "history.jsonl", "history/", "digests/"]) {
+    check(lines.has(path), `.gitignore must keep run-data path "${path}" ignored (#17/#19)`);
+  }
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);

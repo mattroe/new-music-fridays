@@ -1,5 +1,8 @@
 # new-music-fridays
 
+[![CI](https://github.com/mattroe/new-music-fridays/actions/workflows/ci.yml/badge.svg)](https://github.com/mattroe/new-music-fridays/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 A weekly "New Music Friday" digest based on your Last.fm listening history. Runs as an Anthropic-hosted Claude Code routine and emails a curated digest of new releases to you each Friday.
 
 ## How it works
@@ -294,3 +297,7 @@ Merging a PR that carries the `cloud-test` label then fires one test run. The la
 It fires *post-merge* by design: a routine clones the repository's **default branch**, so it can only exercise a change once that change is in `main` — a trigger on an *open* PR would clone `main` and miss the unmerged change entirely. To exercise a change before it merges, use **Run now** (or check out the branch and run locally).
 
 It is **not a merge gate**: the run happens after the merge and reports no pass/fail commit status — a green run only means the session didn't crash, not that the digest was correct — so branch protection can't require it. That is what [Local checks (CI)](#local-checks-ci) are for; this is a post-merge canary. Requires the Claude GitHub App installed on the repo (the trigger setup prompts for it) — and if the form still warns the App isn't installed when it already is, reconnect GitHub from the claude.ai side: installing the App on GitHub and linking that installation to your claude.ai account are separate steps.
+
+## License
+
+[GNU AGPL-3.0](LICENSE). You're free to run, study, modify, and share this; if you run a modified version as a network service, the AGPL asks that you offer your users its source too. A copyleft choice — derivatives stay open.
