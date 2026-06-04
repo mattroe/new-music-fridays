@@ -57,6 +57,8 @@ To run a routine smoke-test when a behavior-affecting change lands, add a GitHub
 - **Labels** include `routine-test` — the opt-in gate.
 - **Base branch** is `main` — optional, scopes it to the default branch.
 
+> **Gotcha — the label lives in two systems that must agree.** This trigger's label filter is configured in the claude.ai routine UI, *not* in the repo, so it can silently drift from the `routine-test` label and the workflow's references in git. If the filter names a label no merged PR carries (e.g. it was left at an old name after a rename), the trigger **matches nothing and fires no run — with no error anywhere**. So if a labeled merge produces no test run, first check the routine's trigger filter spells the label exactly `routine-test` before debugging anything else.
+
 Merging a PR that carries the `routine-test` label then fires one test run. The label keeps the smoke-test opt-in: tag PRs that touch `SKILL.md`, configs, or templates, and skip docs-only changes, so routine runs and test emails aren't spent on merges that can't change the digest.
 
 It fires *post-merge* by design: a routine clones the repository's **default branch**, so it can only exercise a change once that change is in `main` — a trigger on an *open* PR would clone `main` and miss the unmerged change entirely. To exercise a change before it merges, use **Run now** (or check out the branch and run locally).
