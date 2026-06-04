@@ -232,6 +232,40 @@ check(
   "SKILL.md no longer anchors its release window to <release_anchor>/<last_friday>",
 );
 
+// 13. musicbrainz.mjs (#51) stays zero-dependency (the cloud clone runs it with
+//     no `npm install`) and keeps its single hardcoded MusicBrainz host plus a
+//     descriptive User-Agent (MB rejects generic agents) — the same narrow-endpoint
+//     / anti-exfil property as send-email.mjs. Existence is covered by check 1.
+const musicbrainz = slurp("scripts/musicbrainz.mjs");
+check(musicbrainz !== null, "scripts/musicbrainz.mjs is missing");
+if (musicbrainz !== null) {
+  const imports = [...musicbrainz.matchAll(/^\s*import\b[^'"]*['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+  for (const spec of imports) {
+    check(
+      spec.startsWith("node:"),
+      `scripts/musicbrainz.mjs imports "${spec}" — only node: built-ins are allowed`,
+    );
+  }
+  check(
+    musicbrainz.includes("https://musicbrainz.org/ws/2"),
+    "scripts/musicbrainz.mjs must keep the hardcoded MusicBrainz host",
+  );
+  check(
+    /User-Agent/.test(musicbrainz),
+    "scripts/musicbrainz.mjs must send a descriptive User-Agent (MusicBrainz rejects generic agents)",
+  );
+}
+
+// 14. config/musicbrainz.yaml (#51) carries the keys SKILL.md reads. Presence
+//     check, not a full YAML parse — kept zero-dependency to match the repo.
+const mbConfig = slurp("config/musicbrainz.yaml");
+check(mbConfig !== null, "config/musicbrainz.yaml is missing");
+if (mbConfig !== null) {
+  for (const key of ["enabled:", "min_score:"]) {
+    check(mbConfig.includes(key), `config/musicbrainz.yaml is missing the "${key}" key SKILL.md reads`);
+  }
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);
