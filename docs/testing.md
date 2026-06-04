@@ -5,7 +5,7 @@
 To smoke-test without sending a production email, do a marked test run in the cloud. The run mode is driven by a single environment variable, `NMF_TEST`:
 
 - Create a second routine (e.g. `new-music-fridays-test`, mirroring the `new-music-fridays-state` suffix convention) bound to the same repo, with **no schedule**, and set `NMF_TEST=1` in its environment. Fire it with **Run now**.
-- `NMF_TEST=1` runs the full path — Last.fm fan-out, web research, feedback, Worth a Second Look — exactly as production does, on the same model, but with trimmed breadth so it finishes faster than a production run (subject `[TEST] New Music Friday - <date>`). It exercises every code path a `cloud-test`-labeled PR is likely to change. Its release window **anchors to the most recent NMF Friday** (not the empty mid-week gap), so a run fired on any weekday still has a complete slate to curate and reaches the send step rather than aborting on zero in-window picks.
+- `NMF_TEST=1` runs the full path — Last.fm fan-out, web research, feedback, Worth a Second Look — exactly as production does, on the same model, but with trimmed breadth so it finishes faster than a production run (subject `[TEST] New Music Friday - <date>`). It exercises every code path a `routine-test`-labeled PR is likely to change. Its release window **anchors to the most recent NMF Friday** (not the empty mid-week gap), so a run fired on any weekday still has a complete slate to curate and reaches the send step rather than aborting on zero in-window picks.
 - **A test run doesn't email you.** It still POSTs to Resend end-to-end — exercising auth, the `api.resend.com` allowlist, and payload acceptance — but addressed to Resend's delivery-simulation sink (`delivered@resend.dev`), so the send returns a real `resend_message_id` (visible in the Resend dashboard) without landing in your inbox. Only production sends reach the real recipient.
 
 Verify from the run's session transcript: `<mode>` is `test`, `validation_passed: true`, `sent: true` with a `resend_message_id`, and both `html`/`text` bodies are populated. Review the rendered digest itself in the transcript (the `email.html`/`email.txt` bodies are logged there) or in the Resend dashboard — there's no inbox copy on a test run. The scheduled Friday run has no env var set, so it always runs in production mode regardless of any test routine.
@@ -45,20 +45,40 @@ A second cloud routine (name it `new-music-fridays-test`, after the `new-music-f
 - **Other environment variables:** `RESEND_API_KEY` for the send, plus the delivery values `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` only if you use the env-var delivery path instead of a committed `config/delivery.yaml` (it's the same repo, so a committed one is already present).
 - **Network access (on its environment):** Custom + `api.resend.com` + "include default package managers" — a test run still sends through Resend (to the sink address), so without this the send fails with a proxy 403.
 - **Trigger:** no schedule needed — fire it with **Run now**. If the form requires a trigger to save, attach an **API trigger** (a one-off `/fire` endpoint, nothing recurring) or the on-merge trigger below. `/schedule` from the CLI only creates *scheduled* routines, so add API or GitHub triggers from the web UI.
-- **State repo:** not needed. History persistence is production-only, so test runs never touch it.
-- **Permissions:** leave **Allow unrestricted branch pushes** off (the default) — test runs push nothing.
+- **State repo:** add it as a second repository on this routine **if you want the on-merge smoke-test to report back on the PR** (see [Closing the loop](#optional-report-the-result-back-on-the-pr) below). The test run records its pass/fail to the state repo's `test-runs/`, which the reconciler reads back. Without it, the test run still runs end-to-end — it just can't report onto the PR (`report-test.sh` no-ops with `state-repo-not-found`).
+- **Permissions:** if you added the state repo for reporting, it needs **Allow unrestricted branch pushes** ON (already required for production history) so the run can push the result to `main`; the **code** repo stays on the safe `claude/`-only default. If you skip reporting, leave unrestricted pushes off everywhere.
 
 Verify from the run's session transcript and the delivered, subject-prefixed email.
 
 #### Optional: smoke-test on labeled merges
 
-To run a cloud smoke-test when a behavior-affecting change lands, add a GitHub-event trigger to the **test** routine (never the production one — it would send a real email and persist history on every matching merge). On the test routine's edit form, **Add another trigger → GitHub event**, pick the **PR merged** preset (`pull_request.closed` filtered to merged), and add filters:
+To run a routine smoke-test when a behavior-affecting change lands, add a GitHub-event trigger to the **test** routine (never the production one — it would send a real email and persist history on every matching merge). On the test routine's edit form, **Add another trigger → GitHub event**, pick the **PR merged** preset (`pull_request.closed` filtered to merged), and add filters:
 
-- **Labels** include `cloud-test` — the opt-in gate.
+- **Labels** include `routine-test` — the opt-in gate.
 - **Base branch** is `main` — optional, scopes it to the default branch.
 
-Merging a PR that carries the `cloud-test` label then fires one test run. The label keeps the smoke-test opt-in: tag PRs that touch `SKILL.md`, configs, or templates, and skip docs-only changes, so routine runs and test emails aren't spent on merges that can't change the digest.
+Merging a PR that carries the `routine-test` label then fires one test run. The label keeps the smoke-test opt-in: tag PRs that touch `SKILL.md`, configs, or templates, and skip docs-only changes, so routine runs and test emails aren't spent on merges that can't change the digest.
 
 It fires *post-merge* by design: a routine clones the repository's **default branch**, so it can only exercise a change once that change is in `main` — a trigger on an *open* PR would clone `main` and miss the unmerged change entirely. To exercise a change before it merges, use **Run now** (or check out the branch and run locally).
 
-It is **not a merge gate**: the run happens after the merge and reports no pass/fail commit status — a green run only means the session didn't crash, not that the digest was correct — so branch protection can't require it. That is what [Local checks (CI)](#local-checks-ci) are for; this is a post-merge canary. Requires the Claude GitHub App installed on the repo (the trigger setup prompts for it) — and if the form still warns the App isn't installed when it already is, reconnect GitHub from the claude.ai side: installing the App on GitHub and linking that installation to your claude.ai account are separate steps.
+It is **not a merge gate**: the run happens after the merge, so branch protection can't require it — that is what [Local checks (CI)](#local-checks-ci) are for. This is a post-merge canary. But a green run *can* now be **reported back onto the PR** (and a hard failure can open a revert PR) — see [Closing the loop](#optional-report-the-result-back-on-the-pr) below. Requires the Claude GitHub App installed on the repo (the trigger setup prompts for it) — and if the form still warns the App isn't installed when it already is, reconnect GitHub from the claude.ai side: installing the App on GitHub and linking that installation to your claude.ai account are separate steps.
+
+#### Optional: report the result back on the PR
+
+By itself the on-merge smoke-test only lives in the run's session transcript. To close the loop — so a passing run is **documented on the PR** and a failing one is **flagged or reverted** — wire up the reconciler. It is the same producer/reconciler split the run already uses for history and digests: the cloud run writes via Git (no API egress, no token on the run side), and a trusted GitHub Action in this repo does all the GitHub-API work.
+
+How it flows:
+
+1. **The run records its outcome.** In test mode, `SKILL.md`'s **Report the test outcome** step writes a small result file and `scripts/report-test.sh` pushes it to the state repo at `test-runs/<merge-sha>.json` — the merge SHA being the join key back to the PR. (Mirror image of the production history/digest writes: it refuses any non-`test` mode.)
+2. **A scheduled Action reconciles it.** `.github/workflows/routine-test-report.yml` runs on a ~10-minute cron in the trusted `main` context, clones the state repo, classifies each result (`scripts/classify-test-run.mjs`), maps the SHA to its merged PR, and acts **once** per PR (idempotent on the outcome label):
+   - **pass** → ✅ comment + `routine-test-passed` label. (The comment is explicit that this confirms the wiring, *not* that the digest content is good — that judgment stays human, in the transcript.)
+   - **transient-fail** (send/connector blip, zero in-window picks, a body didn't render) → comment + `routine-test-failed` label + assign owner. **No revert** — the cloud run hits live Last.fm / web search / Resend, so a single red is often a flake; reverting on noise trains you to ignore the bot. Re-run the test routine.
+   - **hard-fail** (`validation_passed` was false — a genuine render/security-boundary regression) → the above **plus a `git revert` PR** for one-click human merge to restore `main`. It is never auto-merged.
+
+Setup (one-time):
+
+- **State repo on the test routine**, with unrestricted pushes ON (see the bullets above).
+- **A read token for the reconciler.** Add a repository **secret `STATE_REPO_TOKEN`** to *this* code repo — a fine-grained PAT with **contents: read** on the private `new-music-fridays-state` repo (sourced from 1Password; only an `op://` reference on disk). The Action's own `GITHUB_TOKEN` handles all the code-repo writes (comment / label / revert PR); the PAT is only to read the private state repo. If the state repo lives elsewhere, set the repo **variable `STATE_REPO`** to `<owner>/<name>` to override the default.
+- Nothing else: the workflow is a no-op if `STATE_REPO_TOKEN` is unset, and only runs on the canonical repo (not forks).
+
+Caveat: a revert PR is opened by `GITHUB_TOKEN`, so CI may not auto-run on it — push an empty commit or close/reopen to trigger CI before merging. And a "pass" is still only a *mechanical* pass (the run completed and the boundary held); content quality is reviewed in the transcript.
