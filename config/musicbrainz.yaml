@@ -18,3 +18,28 @@ enabled: true
 # stricter (fewer false matches on common titles); lower resolves more but risks
 # mis-hits. Tune on the first cloud run.
 min_score: 90
+
+# --- Phase 2 enrichment (issues #58, #61). Each switch adds ONE extra paced
+# (~1 req/s) MusicBrainz lookup per *resolved* candidate, on top of the Phase 1
+# search. Same resilience as verification: fail-soft per candidate, 403-fail-fast,
+# no secret, the `musicbrainz.org` allowlist host already covers them. They are
+# additive curation SIGNALS only — never a veto, never a citation source. Default
+# on, like `enabled`; flip either to false to skip its lookup (e.g. if the added
+# wall-clock bites, or to isolate one signal). The master `enabled` switch gates
+# all of MusicBrainz, including these.
+
+# Authoritative label (issue #58, part 2). When on, resolve the release-group's
+# releases (`release?release-group=<mbid>&inc=labels`) to read the canonical
+# label/imprint. SKILL.md prefers this over the web-scraped label when present
+# ("MB wins when resolved") — a reliability gain on the rendered label field.
+enrich_labels: true
+
+# Credit overlap + coverage probe (issue #61, MVP slice). When on, pull the
+# release-group's personnel (`release-group/<mbid>?inc=artist-rels`) — producers,
+# engineers, songwriters, collaborators — distilled to names/roles/MBIDs only (no
+# MB free-text). SKILL.md annotates kept candidates whose personnel overlap an
+# artist you already listen to ("produced by X, whom you play"), feeding the
+# section-A producer/collaborator rationale, and records how well-populated
+# new-release credits are. This coverage measurement gates the deferred discovery
+# fan-out (#61) — keep it on for a few weeks to quantify before that's built.
+enrich_credits: true

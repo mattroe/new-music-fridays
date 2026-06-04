@@ -256,12 +256,14 @@ if (musicbrainz !== null) {
   );
 }
 
-// 14. config/musicbrainz.yaml (#51) carries the keys SKILL.md reads. Presence
-//     check, not a full YAML parse — kept zero-dependency to match the repo.
+// 14. config/musicbrainz.yaml (#51, #58, #61) carries the keys SKILL.md reads.
+//     Presence check, not a full YAML parse — kept zero-dependency to match the
+//     repo. The Phase 2 enrichment switches (enrich_labels / enrich_credits) gate
+//     the extra per-candidate lookups SKILL.md drives in *Verify candidates*.
 const mbConfig = slurp("config/musicbrainz.yaml");
 check(mbConfig !== null, "config/musicbrainz.yaml is missing");
 if (mbConfig !== null) {
-  for (const key of ["enabled:", "min_score:"]) {
+  for (const key of ["enabled:", "min_score:", "enrich_labels:", "enrich_credits:"]) {
     check(mbConfig.includes(key), `config/musicbrainz.yaml is missing the "${key}" key SKILL.md reads`);
   }
 }
