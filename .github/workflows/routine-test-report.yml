@@ -56,6 +56,8 @@ jobs:
       - name: Reconcile routine-test results onto their PRs
         env:
           GH_TOKEN: ${{ github.token }}
+          # Read-only PAT for the private state repo. Scope + rotation runbook
+          # (expiry deadline, how to rotate) live in the state repo's OPERATIONS.md.
           STATE_REPO_TOKEN: ${{ secrets.STATE_REPO_TOKEN }}
           REPO: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
