@@ -96,6 +96,16 @@ test("an unknown subcommand prints usage and exits 2", async () => {
   assert.match(stderr, /usage:.*state-repo/);
 });
 
+test("prompt prints the canonical bootstrap prompt verbatim, from any cwd", async () => {
+  // Resolved relative to the script, so it works regardless of cwd (run it from
+  // a throwaway temp dir to prove that).
+  const expected = readFileSync(join(ROOT, "docs/bootstrap-prompt.md"), "utf8");
+  const cwd = mkdtempSync(join(tmpdir(), "nmf-prompt-cwd-"));
+  const { code, stdout } = await runBash(["prompt"], { cwd });
+  assert.equal(code, 0);
+  assert.equal(stdout, expected);
+});
+
 // validate is method-aware (the file-only delivery path). Write a delivery.yaml
 // into a temp cwd and run `validate` there.
 function withDelivery(yaml) {

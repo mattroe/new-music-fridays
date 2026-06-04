@@ -15,6 +15,7 @@
 #   bash scripts/bootstrap.sh preflight   # report toolchain + repo + config readiness
 #   bash scripts/bootstrap.sh validate    # sanity-check config/delivery.yaml; exit 1 on problems
 #   bash scripts/bootstrap.sh state-repo [name]  # create + seed the private state repo (default: new-music-fridays-state)
+#   bash scripts/bootstrap.sh prompt      # print the canonical bootstrap prompt to paste into Claude Code
 #
 # preflight and validate are read-only: preflight is a report and never fails;
 # validate exits non-zero so the bootstrap prompt (or CI) can gate on it. state-repo
@@ -229,12 +230,23 @@ state_repo() {
   info "enable 'Allow unrestricted branch pushes' on $slug only (leave the code repo on the default)"
 }
 
+# Print the canonical bootstrap prompt for pasting into Claude Code. The prompt
+# lives in one versioned file (docs/bootstrap-prompt.md) rather than copy-pasted
+# into the README/issues, so it's diffed and CI-checked like the rest of the repo
+# and the user runs the exact repo-pinned text instead of trusting a block on a
+# web page. Resolved relative to the script so it works from any cwd.
+prompt() {
+  local root; root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  cat "$root/docs/bootstrap-prompt.md"
+}
+
 case "${1:-}" in
   preflight)  preflight ;;
   validate)   validate ;;
   state-repo) state_repo "${2:-}" ;;
+  prompt)     prompt ;;
   *)
-    echo "usage: $0 [preflight | validate | state-repo [name]]" >&2
+    echo "usage: $0 [preflight | validate | state-repo [name] | prompt]" >&2
     exit 2
     ;;
 esac
