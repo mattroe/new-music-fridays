@@ -266,6 +266,24 @@ if (mbConfig !== null) {
   }
 }
 
+// 15. report-test.sh (the routine-test feedback loop's producer) runs on every
+//     TEST run. Existence is covered by the path scan in check 1; here we assert
+//     the two invariants its safety boundary rests on — the MIRROR-IMAGE guard
+//     (test-only, so a production run can never write a test result, the inverse
+//     of publish-digest.sh's production-only guard) and the push to the state repo.
+const reportTest = slurp("scripts/report-test.sh");
+check(reportTest !== null, "scripts/report-test.sh is missing");
+if (reportTest !== null) {
+  check(
+    /mode\s*!==?\s*"test"|"test"\s*!==?\s*mode/.test(reportTest),
+    "scripts/report-test.sh dropped its test-only guard",
+  );
+  check(
+    reportTest.includes("git push"),
+    "scripts/report-test.sh no longer pushes to the state repo",
+  );
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);

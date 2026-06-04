@@ -33,6 +33,7 @@ jobs:
         run: |
           node --check scripts/send-email.mjs
           node --check scripts/check-contract.mjs
+          node --check scripts/classify-test-run.mjs
 
       - name: Shell syntax
         run: for f in scripts/*.sh; do bash -n "$f"; done

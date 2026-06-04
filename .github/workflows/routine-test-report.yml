@@ -1,0 +1,198 @@
+name: Routine test report
+
+# Closes the routine-test feedback loop. A `routine-test`-labeled merge fires a
+# post-merge cloud routine run; that run records its outcome to the PRIVATE state
+# repo via scripts/report-test.sh (test-runs/<merge-sha>.json). This scheduled
+# job — the reconciler — reads those results back and reports each onto the PR
+# that triggered it:
+#
+#   pass            -> comment + 'routine-test-passed' label  (documented green)
+#   transient-fail  -> comment + 'routine-test-failed' label + assign owner
+#                      (a live-integration blip on a flaky run — NO revert)
+#   hard-fail       -> the above + open a git-revert PR for human merge
+#                      (validation_passed was false: a real regression)
+#
+# Why a scheduled reconciler and not a dispatch from the run: the run writes only
+# via the git-push seam (no API egress, no token on the untrusted side). Polling
+# from the trusted main-branch context keeps all GitHub-API and revert actions
+# here, where the write token lives — the same trust split dependabot-triage.yml
+# uses. It is a POST-MERGE canary, not a merge gate: CI remains the gate (a
+# routine clones the default branch, so the change is already merged when it runs).
+#
+# Why classification: the cloud run hits live Last.fm / web search / Resend, so a
+# single red is often transient. Only a genuine validation regression
+# (validation_passed=false) opens a revert PR; transient reds are flagged, not
+# reverted, so noise never trains the bot to be ignored. See scripts/classify-test-run.mjs.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write       # push the revert branch
+  pull-requests: write  # comment / label / assign / open the revert PR
+  issues: write         # create the labels, set assignee
+
+concurrency:
+  group: routine-test-report
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    # Never run on forks' schedules — only the canonical repo has the state repo
+    # and the read token.
+    if: github.repository == 'mattroe/new-music-fridays'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history so an arbitrary merge sha can be reverted
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Reconcile routine-test results onto their PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_REPO_TOKEN: ${{ secrets.STATE_REPO_TOKEN }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          # Optional override; defaults to <owner>/new-music-fridays-state.
+          STATE_REPO_VAR: ${{ vars.STATE_REPO }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          # Fail-soft if the read token isn't configured (e.g. before setup) —
+          # the loop simply does nothing rather than erroring every 10 minutes.
+          if [ -z "${STATE_REPO_TOKEN:-}" ]; then
+            echo "STATE_REPO_TOKEN not set; nothing to reconcile."
+            exit 0
+          fi
+          echo "::add-mask::$STATE_REPO_TOKEN"
+
+          state_repo="${STATE_REPO_VAR:-$OWNER/new-music-fridays-state}"
+          if ! git clone --depth 1 \
+                "https://x-access-token:${STATE_REPO_TOKEN}@github.com/${state_repo}.git" state 2>/dev/null; then
+            echo "Could not clone state repo '$state_repo' (may not exist yet); nothing to do."
+            exit 0
+          fi
+          if [ ! -d state/test-runs ]; then
+            echo "No test-runs/ in the state repo; nothing to reconcile."
+            exit 0
+          fi
+
+          # Idempotent label set (already-labeled PRs are skipped below).
+          gh label create routine-test-passed --repo "$REPO" --color 0E8A16 --force \
+            --description "Post-merge routine smoke-test passed" >/dev/null
+          gh label create routine-test-failed --repo "$REPO" --color D93F0B --force \
+            --description "Post-merge routine smoke-test failed; needs a human" >/dev/null
+
+          for f in state/test-runs/*.json; do
+            echo "::group::$f"
+
+            if ! out="$(node scripts/classify-test-run.mjs "$f")"; then
+              echo "Could not classify $f; skipping."
+              echo "::endgroup::"; continue
+            fi
+            head_sha="$(printf '%s\n' "$out" | sed -n 's/^head_sha=//p')"
+            verdict="$(printf '%s\n' "$out" | sed -n 's/^verdict=//p')"
+            reason="$(printf '%s\n' "$out" | sed -n 's/^reason=//p')"
+            if [ -z "$head_sha" ]; then
+              echo "No head_sha in $f; skipping."
+              echo "::endgroup::"; continue
+            fi
+            # The result JSON lives in the state repo, whose main is routine-writable
+            # (CLAUDE.md #35), so treat head_sha as untrusted: it picks the commit we
+            # revert and create branches from. Quoting already blocks shell injection;
+            # this rejects anything that isn't a hex object name outright.
+            if ! printf '%s' "$head_sha" | grep -Eq '^[0-9a-f]{7,40}$'; then
+              echo "head_sha '$head_sha' is not a valid object name; skipping."
+              echo "::endgroup::"; continue
+            fi
+
+            # Join the merge commit to its PR. The pulls-for-commit endpoint lists
+            # PRs associated with the sha; take the merged one.
+            pr="$(gh api "repos/$REPO/commits/$head_sha/pulls" \
+                    -H "Accept: application/vnd.github+json" \
+                    --jq 'map(select(.merged_at != null)) | .[0].number // empty' 2>/dev/null || true)"
+            if [ -z "$pr" ]; then
+              echo "No merged PR for $head_sha (e.g. a Run-now result); skipping."
+              echo "::endgroup::"; continue
+            fi
+
+            # Idempotency: act once. If either outcome label is already present,
+            # this result was reconciled on a previous tick.
+            existing="$(gh pr view "$pr" --repo "$REPO" --json labels --jq '.labels[].name' 2>/dev/null || true)"
+            if printf '%s\n' "$existing" | grep -qx 'routine-test-passed\|routine-test-failed'; then
+              echo "PR #$pr already reconciled; skipping."
+              echo "::endgroup::"; continue
+            fi
+
+            # Build comment bodies with printf so there is no multi-line-string
+            # indentation to leak into Markdown (leading spaces render as code).
+            short="${head_sha:0:12}"
+            case "$verdict" in
+              pass)
+                echo "PR #$pr: PASS"
+                printf '%s\n\n%s\n' \
+                  "✅ **Routine smoke-test passed** for the merge of this PR (\`$short\`)." \
+                  "The post-merge routine ran end to end and the mechanical + security boundary held — $reason. This confirms the wiring works, **not** that the digest content is good: review the rendered bodies in the run's session transcript for that." > body.md
+                gh pr comment "$pr" --repo "$REPO" --body-file body.md
+                gh pr edit "$pr" --repo "$REPO" --add-label routine-test-passed
+                ;;
+
+              transient-fail)
+                echo "PR #$pr: TRANSIENT-FAIL"
+                printf '%s\n\n%s\n' \
+                  "⚠️ **Routine smoke-test failed** for the merge of this PR (\`$short\`) — $reason." \
+                  "This looks **transient** (the cloud run hits live Last.fm / web search / Resend), not a validation regression, so no revert was opened. Re-run the test routine; if it keeps failing, treat it as a real break." > body.md
+                gh pr comment "$pr" --repo "$REPO" --body-file body.md
+                gh pr edit "$pr" --repo "$REPO" --add-label routine-test-failed --add-assignee "$OWNER"
+                ;;
+
+              hard-fail)
+                echo "PR #$pr: HARD-FAIL — opening revert PR"
+                gh pr edit "$pr" --repo "$REPO" --add-label routine-test-failed --add-assignee "$OWNER"
+
+                branch="revert-routine-test-$short"
+                if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+                  echo "Revert branch '$branch' already exists; not opening a second."
+                  body_note="A revert branch already existed."
+                else
+                  git config user.name "new-music-fridays ci"
+                  git config user.email "noreply@anthropic.com"
+                  # Always base the revert on main, not whatever HEAD a prior
+                  # iteration's revert branch left us on.
+                  git checkout -b "$branch" origin/main
+                  # A squash merge is single-parent (plain revert); a merge commit
+                  # has 2 parents (revert the first-parent mainline, -m 1).
+                  nparents="$(git rev-list --parents -n1 "$head_sha" | wc -w)"
+                  if [ "$nparents" -ge 3 ]; then
+                    git revert --no-edit -m 1 "$head_sha"
+                  else
+                    git revert --no-edit "$head_sha"
+                  fi
+                  git push origin "$branch"
+                  body_note="Opened from \`$branch\`."
+                fi
+
+                printf '%s\n\n%s\n\n%s\n\n%s\n' \
+                  "The post-merge routine smoke-test **hard-failed** on the merge of #$pr (\`$short\`): $reason." \
+                  "A hard failure means \`validation_passed\` was false — the render/security boundary actually broke, which is a genuine regression rather than a flaky run. This revert returns \`main\` to a known-good state." \
+                  "$body_note **Merge it to restore \`main\`, or close it** if you'd rather fix forward (then re-run the test routine to re-validate)." \
+                  "> Note: opened by \`GITHUB_TOKEN\`, so CI may not auto-run on this PR — push an empty commit or close/reopen to trigger it before merging." > revert-body.md
+                gh pr create --repo "$REPO" --base main --head "$branch" \
+                  --title "Revert: routine smoke-test hard-failed on PR #$pr" \
+                  --body-file revert-body.md \
+                  2>/dev/null || echo "Revert PR for $branch already open; left as is."
+                ;;
+
+              *)
+                echo "Unknown verdict '$verdict' for PR #$pr; skipping."
+                ;;
+            esac
+            echo "::endgroup::"
+          done
