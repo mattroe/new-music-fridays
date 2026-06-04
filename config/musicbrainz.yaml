@@ -1,0 +1,20 @@
+# MusicBrainz verification (issue #51, Phase 1). After web-research discovery,
+# SKILL.md resolves each kept candidate against the open MusicBrainz database to
+# verify it exists and read its release-group first-release-date — catching
+# hallucinated/mis-dated picks and demoting reissues. It is a curation SIGNAL,
+# never a veto, and never a citation source. See SKILL.md's "Verify candidates
+# against MusicBrainz" step. No secret: reads need only a descriptive User-Agent.
+#
+# Requires one environment step the repo can't provision: add `musicbrainz.org`
+# to the routine's Custom Network-access allowlist (see CLAUDE.md). Until then the
+# step fails fast and the run proceeds exactly as today.
+
+# Master switch. Default on — safe because the step is fail-soft (MB down ->
+# all-unverified, email still ships) and fails fast on a proxy 403 (host not yet
+# allowlisted -> ~0.5s, not paced 403s). Set false to disable entirely (kill switch).
+enabled: true
+
+# MusicBrainz Lucene match-score floor (0-100) to accept a search hit. Higher is
+# stricter (fewer false matches on common titles); lower resolves more but risks
+# mis-hits. Tune on the first cloud run.
+min_score: 90
