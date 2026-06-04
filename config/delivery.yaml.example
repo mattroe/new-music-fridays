@@ -3,6 +3,9 @@
 # never get committed.
 
 # Plain email string only; the resend `from` field rejects "Name <email>" wrappers.
+# To skip DNS setup you can use Resend's sandbox sender `onboarding@resend.dev`,
+# but it only delivers to the email address on your own Resend account — so `to`
+# below must equal that address, or the send fails with a Resend 4xx.
 from: you@your-verified-domain.example
 
 to: you@somewhere.example

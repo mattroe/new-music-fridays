@@ -9,8 +9,9 @@ Clone the repo and run your own weekly digest. It runs as a cloud routine on Ant
 - A Last.fm account.
 - A Claude Pro/Max subscription (routines run on Anthropic's infrastructure).
 - Your GitHub account connected to Claude Code (a routine clones a repo each run).
+- The [`gh` CLI](https://cli.github.com), authenticated (`gh auth login`) — optional, but the bootstrap needs it to verify your repo's visibility, push a private code mirror, and run `bootstrap.sh state-repo`. Without it those steps fall back to manual.
 - **A way to get the digest.** Pick one — both are first-class, set with the `method` field in `config/delivery.yaml`:
-  - **Email it (`method: resend`, the default).** The routine sends via [Resend](https://resend.com/) — from a verified custom domain (one-time DNS setup, can take a while) or Resend's sandbox sender for testing. Needs a Resend **API key** and the `api.resend.com` network-allowlist entry (both configured below). There's no Resend connector, so it sends via Resend's REST API.
+  - **Email it (`method: resend`, the default).** The routine sends via [Resend](https://resend.com/) — from a verified custom domain (one-time DNS setup, can take a while) or Resend's sandbox sender (`onboarding@resend.dev`) for testing. **The sandbox sender only delivers to the email address on your own Resend account, so your `to` must be that address** — a mismatch passes local `validate` but fails the first cloud send with a Resend 4xx. Needs a Resend **API key** and the `api.resend.com` network-allowlist entry (both configured below). There's no Resend connector, so it sends via Resend's REST API.
   - **Just the downloadable file (`method: none`).** Skip email entirely — no Resend account, key, sender, or allowlist. Each run commits the rendered digest to your private state repo as a downloadable file, so this path **requires the state repo** ([Durable run history](#durable-run-history)). See [Other delivery options](delivery.md) for this and for swapping in another email provider or a push notification.
 
 ## Bootstrap with Claude Code (recommended)
@@ -64,13 +65,21 @@ the steps I can only finish in the browser. Skim README.md and docs/setup.md fir
      the terminal with `/schedule` in Claude Code (creates the scheduled routine
      and attaches the repo; I'll still finish connector + env vars + network
      access in the web settings, which the CLI can't set), or create it in the
-     browser at claude.ai/code/routines. Either way it needs:
+     browser at claude.ai/code/routines. Heads-up on two `/schedule` surprises to
+     check in the routine settings afterward: (a) it may attach EVERY connector on
+     my account, not just Last.fm — prune it down to Last.fm only, since this
+     routine reads untrusted web content and extra connectors are needless blast
+     radius; and (b) the first scheduled fire can land before I've finished this
+     checklist (a Wednesday scaffold gives a `next_run_at` of this Friday) — that
+     run is harmless (no Last.fm tools yet, so it aborts and sends nothing), but
+     I can create it disabled and flip it on once setup is done. Either way it
+     needs:
        Repository: <my repo from step 3>
        Prompt:     Follow the instructions in SKILL.md at the repository root
                    exactly. It is the runtime prompt for this routine.
        Model:      Sonnet
        Schedule:   weekly, Friday morning (a time still on Friday in UTC)
-       Connectors: enable Last.fm
+       Connectors: enable Last.fm ONLY (remove any others /schedule attached)
        Env vars:   for `method: resend`, RESEND_API_KEY (plus NMF_FROM / NMF_TO /
                    NMF_SUBJECT if I chose the env-var path in step 3). For
                    `method: none`, no RESEND_API_KEY; add NMF_DELIVERY=none if I'm
@@ -129,12 +138,12 @@ Optional tuning:
    - commit `config/delivery.yaml` to a **private** repo (it's gitignored by default, so force it in: `git add -f config/delivery.yaml`), **or**
    - keep it out of git: set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` as routine **environment variables** (step 3). At the start of each run `SKILL.md` calls `scripts/write-delivery.sh`, which writes `config/delivery.yaml` from them — done *during* the run, in the repo root. (An environment **setup script** can't do this: it runs before the repo is cloned, so there's no `config/` to write into.)
 
-3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) — or scaffold it from the terminal with `/schedule` in Claude Code (no desktop app needed). `/schedule` creates the scheduled routine and attaches the repo, but the connector toggle, environment variables, and network-access allowlist below can only be set in the web routine settings, so finish those there regardless:
+3. **Create the routine** at [claude.ai/code/routines](https://claude.ai/code/routines) — or scaffold it from the terminal with `/schedule` in Claude Code (no desktop app needed). `/schedule` creates the scheduled routine and attaches the repo, but the connector toggle, environment variables, and network-access allowlist below can only be set in the web routine settings, so finish those there regardless. Two `/schedule` surprises to check afterward: it may attach **every connector on your account** rather than just Last.fm — open the routine and prune to Last.fm only (extra connectors are needless blast radius on a routine that reads untrusted web content); and the **first scheduled fire can land before you've finished this checklist** (scaffold on a Wednesday and `next_run_at` is this Friday). That early run is harmless — with no Last.fm connector yet it aborts and sends nothing — but you can create the routine disabled and enable it once setup is done.
    - **Repository:** the repo from step 2.
    - **Prompt:** `Follow the instructions in SKILL.md at the repository root exactly. It is the runtime prompt for this routine.`
    - **Model:** Sonnet is the default — sufficient curation for this digest at a fraction of the token cost (Opus is available for deeper curation, Haiku for cheaper/faster runs). The `model:` frontmatter in `SKILL.md` is ignored by routines — pick the model here. (There's no effort control on a routine.)
    - **Schedule:** Weekly → Friday, a morning time. Routines run on a UTC-based clock, so choose a time that still falls on Friday in UTC; otherwise the release window (`last Friday → this Friday`) can shift by a day.
-   - **Connectors:** enable Last.fm.
+   - **Connectors:** enable Last.fm — and **only** Last.fm; remove anything else `/schedule` attached.
    - **Environment variables:** for `method: resend`, set `RESEND_API_KEY` (a Resend **Sending-access** key for your domain) so `scripts/send-email.mjs` can send; for `method: none` no API key is needed. For the keep-it-out-of-git option (step 2), also add `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT` (and `NMF_DELIVERY=none` if you're on the file-only method). Leave the environment's **Setup script** empty — delivery config is written during the run, not at setup.
 
 4. **Test it.** Use **Run now** to fire the routine — note this sends a real, unprefixed production email (with `method: none` nothing is sent; the run publishes the digest to your state repo instead). Open the run as a session from the routines list to see what it did and its token usage in the transcript. (`runs/<date>/` artifacts don't persist in the cloud, and `meta.json.tokens` is `null` — that's expected; read usage from the transcript.) To check the pipeline without a production send, do a marked test run first — see [Testing a fork](testing.md#testing-a-fork).

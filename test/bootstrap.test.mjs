@@ -127,3 +127,19 @@ test("validate keeps the Resend wrapper rule under the default method", async ()
   assert.equal(code, 1);
   assert.match(stderr, /Name <email>/);
 });
+
+test("validate info-hints the sandbox-sender delivery restriction under resend", async () => {
+  // onboarding@resend.dev passes validation but only delivers to your own
+  // Resend-account email — surface that so a mismatched `to` isn't a silent trap.
+  const dir = withDelivery('from: onboarding@resend.dev\nto: c@d.co\nsubject_template: "x {date}"\n');
+  const { code, stdout } = await runBash(["validate"], { cwd: dir });
+  assert.equal(code, 0);
+  assert.match(stdout, /sandbox sender/);
+});
+
+test("validate does not show the sandbox hint under method: none", async () => {
+  const dir = withDelivery('from: onboarding@resend.dev\nto: c@d.co\nsubject_template: "x {date}"\nmethod: none\n');
+  const { code, stdout } = await runBash(["validate"], { cwd: dir });
+  assert.equal(code, 0);
+  assert.doesNotMatch(stdout, /sandbox sender/);
+});

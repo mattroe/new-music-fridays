@@ -62,7 +62,7 @@ preflight() {
       info "gh CLI present but not logged in — run 'gh auth login' to let the bootstrap push for you"
     fi
   else
-    info "gh CLI not found (optional) — install it to let the bootstrap create/push a private repo"
+    info "gh CLI not found — optional, but 'bootstrap.sh state-repo' and scripting a private code mirror need it; install from https://cli.github.com"
   fi
 
   echo
@@ -77,10 +77,14 @@ preflight() {
         local vis
         vis="$(gh repo view --json visibility -q .visibility 2>/dev/null || true)"
         if [[ "$vis" == "PUBLIC" ]]; then
-          todo "origin is PUBLIC — don't commit config/delivery.yaml here. Fork to a PRIVATE repo, or keep delivery out of git and use NMF_* routine env vars."
+          todo "origin is PUBLIC — don't commit config/delivery.yaml here. Push the code to a fresh PRIVATE repo (GitHub can't make a private fork of a public repo), or keep delivery out of git and use NMF_* routine env vars."
         elif [[ -n "$vis" ]]; then
           ok "origin visibility: $vis — safe to commit config/delivery.yaml (it's gitignored; force it in with 'git add -f')"
+        else
+          todo "couldn't read origin visibility from gh — confirm origin is PRIVATE before 'git add -f config/delivery.yaml', or keep delivery out of git and use NMF_* routine env vars"
         fi
+      else
+        todo "can't verify origin visibility without an authenticated gh CLI — confirm origin is PRIVATE before 'git add -f config/delivery.yaml', or keep delivery out of git and use NMF_* routine env vars"
       fi
     else
       info "no 'origin' remote yet — create a private one before wiring up the routine"
@@ -141,6 +145,12 @@ validate() {
     echo "FAIL from: doesn't look like an email address" >&2; fail=1
   elif [[ "$from" == *.example ]]; then
     echo "FAIL from: still the example placeholder — set your Resend-verified sender" >&2; fail=1
+  fi
+
+  # Resend's sandbox sender skips DNS but only delivers to your own account email,
+  # so a mismatched 'to' passes validate yet 4xxs on the first cloud send.
+  if [[ "$method" == "resend" && "$from" == "onboarding@resend.dev" ]]; then
+    info "from: using Resend's sandbox sender (onboarding@resend.dev) — it only delivers to the email on your Resend account, so 'to' must be that address or the send 4xxs"
   fi
 
   # to: present, email-shaped, and not the example placeholder.
