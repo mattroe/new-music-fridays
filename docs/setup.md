@@ -16,94 +16,13 @@ Clone the repo and run your own weekly digest. It runs as a cloud routine on Ant
 
 ## Bootstrap with Claude Code (recommended)
 
-This repo assumes you have Claude Code — so let it drive the setup. Clone the repo (or your fork), open Claude Code in the repo root, and paste the prompt below. It asks how you want the digest delivered (email via Resend, or just the downloadable file), runs a local preflight, writes and validates `config/delivery.yaml`, sorts out the GitHub side, and then hands you a checklist — with your values already filled in — for the few steps that only exist in the browser (the Last.fm connector OAuth, your Resend sender if you chose email, and creating the routine). The `scripts/bootstrap.sh` helper it calls is read-only: `preflight` reports readiness and `validate` sanity-checks your delivery config.
+This repo assumes you have Claude Code — so let it drive the setup. Clone the repo (or your fork), open Claude Code in the repo root, and paste the **bootstrap prompt** into it. Print the prompt with:
 
-```text
-Set up the "new-music-fridays" weekly digest for me as an Anthropic-hosted Claude
-Code routine. Do everything that can be done locally, and prepare exact values for
-the steps I can only finish in the browser. Skim README.md and docs/setup.md first
-(and SKILL.md if you need detail on run modes or env vars).
-
-1. Run `bash scripts/bootstrap.sh preflight` and walk me through whatever it flags
-   (Node, git, gh, repo visibility, delivery config).
-
-2. Delivery config. First ask how I want the digest delivered:
-   - `resend` (default) — email it via Resend. Needs a Resend API key + verified
-     sender + the `api.resend.com` allowlist (the browser steps below).
-   - `none` — skip email; deliver only the downloadable file committed to my
-     private state repo each run. No Resend at all, but it REQUIRES the state repo
-     (step 4's "durable run history" becomes mandatory, not optional). Tell me
-     this if I pick `none`.
-   Then ask for my "from" address, "to" address, and subject line (default
-   `New Music Friday - {date}`, where `{date}` becomes MM-DD-YYYY). For `resend`,
-   "from" must be a Resend-verified sender — a plain address, no "Name <email>"
-   wrapper; for `none` it's just display text in the rendered digest. Copy
-   `config/delivery.yaml.example` to `config/delivery.yaml` if it's missing, write
-   my answers in (including `method:`), then run `bash scripts/bootstrap.sh
-   validate` and fix anything it reports. Never put my Resend API key in this file
-   or anywhere in the repo.
-
-3. GitHub. The routine clones a repo each run and `config/delivery.yaml` is
-   gitignored, so settle how the clone will get my delivery values:
-   - Recommended — commit it to a PRIVATE repo. If origin isn't already my own
-     private repo, help me create or point to one, then `git add -f
-     config/delivery.yaml`, commit, and push (confirm with me before pushing).
-   - Alternative — keep it out of git and set `NMF_FROM` / `NMF_TO` / `NMF_SUBJECT`
-     as routine env vars instead (SKILL.md writes delivery.yaml from them at run
-     start; add `NMF_DELIVERY=none` too if I chose the file-only method). If I pick
-     this, don't commit delivery.yaml; just hold the values for the next step.
-   Never push my delivery.yaml to a public repo, and don't push without asking.
-
-4. Browser-only handoff. These can't be scripted — print them as a checklist with
-   my values filled in. Skip the Resend-only items (marked) if I chose `method:
-   none`:
-   - Last.fm connector: add the remote MCP `https://lastfm-mcp.com/mcp` at
-     claude.ai/customize/connectors and complete its OAuth once.
-   - Resend (only if `method: resend`): confirm a verified sender for my "from"
-     address and a Sending-access API key.
-   - Create the routine. I don't need the desktop app — either scaffold it from
-     the terminal with `/schedule` in Claude Code (creates the scheduled routine
-     and attaches the repo; I'll still finish connector + env vars + network
-     access in the web settings, which the CLI can't set), or create it in the
-     browser at claude.ai/code/routines. Heads-up on two `/schedule` surprises to
-     check in the routine settings afterward: (a) it may attach EVERY connector on
-     my account, not just Last.fm — prune it down to Last.fm only, since this
-     routine reads untrusted web content and extra connectors are needless blast
-     radius; and (b) the first scheduled fire can land before I've finished this
-     checklist (a Wednesday scaffold gives a `next_run_at` of this Friday) — that
-     run is harmless (no Last.fm tools yet, so it aborts and sends nothing), but
-     I can create it disabled and flip it on once setup is done. Either way it
-     needs:
-       Repository: <my repo from step 3>
-       Prompt:     Follow the instructions in SKILL.md at the repository root
-                   exactly. It is the runtime prompt for this routine.
-       Model:      Sonnet
-       Schedule:   weekly, Friday morning (a time still on Friday in UTC)
-       Connectors: enable Last.fm ONLY (remove any others /schedule attached)
-       Env vars:   for `method: resend`, RESEND_API_KEY (plus NMF_FROM / NMF_TO /
-                   NMF_SUBJECT if I chose the env-var path in step 3). For
-                   `method: none`, no RESEND_API_KEY; add NMF_DELIVERY=none if I'm
-                   on the env-var path.
-       Setup script: leave empty
-   - Network access (only if `method: resend`): routine environment -> Network
-     access -> Custom, add `api.resend.com`, and check "Also include default list
-     of common package managers" (without it the send fails with a proxy 403).
-     With `method: none` there's no send, so the default Trusted access is enough.
-   - Offer to also prep a second `new-music-fridays-test` routine — same repo,
-     no schedule, `NMF_TEST=1` — for safe smoke tests.
-   - Durable run history (OPTIONAL for `method: resend`, REQUIRED for `method:
-     none` — it's where the downloadable digest lands): just run
-     `bash scripts/bootstrap.sh state-repo` for me — it creates the private state
-     repo and seeds `history.jsonl` automatically (don't make me do the gh/git by
-     hand). Then the only manual part left is the routine setting: add it as a
-     SECOND repo on the routine and enable "Allow unrestricted branch pushes" on
-     that state repo only (leave the code repo on the default). For `method:
-     resend`, skipping the whole thing just means no cross-run history is kept;
-     for `method: none`, skipping it means the digest survives only in the run
-     transcript. See "Durable run history".
-
-End with a summary of what's done and the exact list of clicks I still owe.
+```bash
+bash scripts/bootstrap.sh prompt
 ```
+
+(or open [`docs/bootstrap-prompt.md`](bootstrap-prompt.md) and copy it — the prompt lives in that one versioned file so it's diffed and CI-checked like the rest of the repo, rather than copy-pasted around). It asks how you want the digest delivered (email via Resend, or just the downloadable file), runs a local preflight, writes and validates `config/delivery.yaml`, sorts out the GitHub side, and then hands you a checklist — with your values already filled in — for the few steps that only exist in the browser (the Last.fm connector OAuth, your Resend sender if you chose email, and creating the routine). The `scripts/bootstrap.sh` helper it calls is read-only here: `preflight` reports readiness and `validate` sanity-checks your delivery config.
 
 Prefer to set it up by hand — or want to see exactly what the bootstrap does? The next two sections are the manual equivalent.
 
