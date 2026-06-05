@@ -48,6 +48,12 @@ test("a send failure is transient-fail, not hard-fail (no revert on a blip)", ()
   assert.equal(classify({ ...passing, sent: true, resend_message_id: "" }).verdict, "transient-fail");
 });
 
+test("a host-not-allowlisted send failure is config-fail, not transient (#66)", () => {
+  const v = classify({ ...passing, sent: false, send_error: "host-not-allowlisted" });
+  assert.equal(v.verdict, "config-fail");
+  assert.match(v.reason, /allowlist/);
+});
+
 test("zero in-window picks is transient-fail (aborted before compose)", () => {
   assert.equal(classify({ ...passing, in_window_picks: 0 }).verdict, "transient-fail");
 });

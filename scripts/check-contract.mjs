@@ -286,6 +286,25 @@ if (reportTest !== null) {
   );
 }
 
+// 16. The config-fail verdict (issue #66) must stay wired end to end: the
+//     classifier emits it from send_error=host-not-allowlisted, and the reconciler
+//     workflow must have a matching case — otherwise a refused-send result falls
+//     through to the "unknown verdict; skipping" branch and reports nothing.
+const classify = slurp("scripts/classify-test-run.mjs");
+const reportWorkflow = slurp(".github/workflows/routine-test-report.yml");
+if (classify !== null && reportWorkflow !== null) {
+  const emitsConfigFail = classify.includes('verdict: "config-fail"');
+  check(emitsConfigFail, "classify-test-run.mjs no longer emits the config-fail verdict (#66)");
+  check(
+    classify.includes("host-not-allowlisted"),
+    "classify-test-run.mjs no longer keys config-fail on send_error=host-not-allowlisted (#66)",
+  );
+  check(
+    !emitsConfigFail || /\bconfig-fail\)/.test(reportWorkflow),
+    "routine-test-report.yml is missing a config-fail) case for the verdict classify-test-run.mjs can emit (#66)",
+  );
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);

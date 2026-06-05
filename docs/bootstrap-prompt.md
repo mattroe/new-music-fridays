@@ -66,8 +66,10 @@ any push, and never put my Resend API key or config/delivery.yaml into a public 
      (add `NMF_DELIVERY=none` on the env-var path). Leave the environment's Setup
      script empty — delivery config is written during the run, not at setup.
    - Network access (only for `resend`): routine environment -> Network access ->
-     Custom, add `api.resend.com`, and check "Also include default list of common
-     package managers" (without it the send fails with a proxy 403). With `none`
-     there's no send, so the default Trusted access is enough.
+     Custom (the UI may label this an "Allowed domains" box — one domain per line,
+     not a URL), add `api.resend.com`, and check "Also include default list of common
+     package managers" (without it the send fails with a proxy 403; the run reports
+     this as `send_error=host-not-allowlisted`, a config error, not a transient
+     blip). With `none` there's no send, so the default Trusted access is enough.
 
 End with a summary of what's done and the exact list of clicks I still owe.
