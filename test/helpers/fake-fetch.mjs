@@ -6,6 +6,9 @@
 //   FAKE_FETCH_MODE    "ok" (default) | "http-error" | "network-error"
 //   FAKE_FETCH_STATUS  HTTP status for the response (default 200)
 //   FAKE_FETCH_BODY    response body string (default '{"id":"test-message-id"}')
+//   FAKE_FETCH_ERROR_MESSAGE  thrown error message in network-error mode
+//                             (default "simulated network failure")
+//   FAKE_FETCH_ERROR_CODE     thrown error `.code` in network-error mode (e.g. ENOTFOUND)
 import { writeFileSync } from "node:fs";
 
 const out = process.env.FAKE_FETCH_OUT;
@@ -15,6 +18,10 @@ const body = process.env.FAKE_FETCH_BODY ?? '{"id":"test-message-id"}';
 
 globalThis.fetch = async (url, options) => {
   if (out) writeFileSync(out, JSON.stringify({ url, options }));
-  if (mode === "network-error") throw new Error("simulated network failure");
+  if (mode === "network-error") {
+    const err = new Error(process.env.FAKE_FETCH_ERROR_MESSAGE ?? "simulated network failure");
+    if (process.env.FAKE_FETCH_ERROR_CODE) err.code = process.env.FAKE_FETCH_ERROR_CODE;
+    throw err;
+  }
   return new Response(body, { status });
 };

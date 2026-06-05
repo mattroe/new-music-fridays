@@ -46,6 +46,8 @@ async function runSend({
   env.FAKE_FETCH_MODE = fake.mode ?? "ok";
   if (fake.status) env.FAKE_FETCH_STATUS = String(fake.status);
   if (fake.body) env.FAKE_FETCH_BODY = fake.body;
+  if (fake.errorMessage) env.FAKE_FETCH_ERROR_MESSAGE = fake.errorMessage;
+  if (fake.errorCode) env.FAKE_FETCH_ERROR_CODE = fake.errorCode;
 
   let code = 0;
   let stdout = "";
@@ -114,4 +116,45 @@ test("network failure exits 1", async () => {
   const { code, stderr } = await runSend({ fake: { mode: "network-error" } });
   assert.equal(code, 1);
   assert.match(stderr, /request to Resend failed/);
+});
+
+test("a DNS resolution failure (host not reachable / not allowlisted) is flagged host-not-allowlisted", async () => {
+  // The real cloud failure in #66: the not-allowlisted host doesn't resolve,
+  // so fetch throws ENOTFOUND rather than the proxy answering with a 403.
+  const { code, stdout, stderr } = await runSend({
+    fake: {
+      mode: "network-error",
+      errorMessage: "getaddrinfo ENOTFOUND api.resend.com",
+      errorCode: "ENOTFOUND",
+    },
+  });
+  assert.equal(code, 1);
+  assert.match(stdout, /send_error=host-not-allowlisted/);
+  assert.match(stderr, /could not be reached/);
+});
+
+test("a generic network blip stays a plain (transient) failure, not an allowlist block", async () => {
+  const { code, stdout, stderr } = await runSend({ fake: { mode: "network-error" } });
+  assert.equal(code, 1);
+  assert.doesNotMatch(stdout, /send_error=host-not-allowlisted/);
+  assert.match(stderr, /request to Resend failed/);
+});
+
+test("a proxy allowlist 403 (non-JSON body) is flagged host-not-allowlisted", async () => {
+  const { code, stdout, stderr } = await runSend({
+    fake: { mode: "http-error", status: 403, body: "403 Host not in allowlist" },
+  });
+  assert.equal(code, 1);
+  // The greppable marker SKILL.md records to tell a config error from a blip.
+  assert.match(stdout, /send_error=host-not-allowlisted/);
+  assert.match(stderr, /refused by the egress proxy/);
+});
+
+test("a real Resend 403 (JSON body) is a plain send failure, not an allowlist block", async () => {
+  const { code, stdout, stderr } = await runSend({
+    fake: { mode: "http-error", status: 403, body: '{"name":"forbidden","message":"nope"}' },
+  });
+  assert.equal(code, 1);
+  assert.doesNotMatch(stdout, /send_error=host-not-allowlisted/);
+  assert.match(stderr, /Resend returned HTTP 403/);
 });

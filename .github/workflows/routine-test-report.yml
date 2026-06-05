@@ -9,6 +9,11 @@ name: Routine test report
 #   pass            -> comment + 'routine-test-passed' label  (documented green)
 #   transient-fail  -> comment + 'routine-test-failed' label + assign owner
 #                      (a live-integration blip on a flaky run — NO revert)
+#   config-fail     -> the same (comment + label + assign, NO revert), but a
+#                      distinct message: api.resend.com isn't reachable from the
+#                      run environment (proxy 403 or DNS failure), so the routine's
+#                      Network access allowlist needs the host. An environment fix,
+#                      not a re-run or a revert (#66).
 #   hard-fail       -> the above + open a git-revert PR for human merge
 #                      (validation_passed was false: a real regression)
 #
@@ -151,6 +156,15 @@ jobs:
                 printf '%s\n\n%s\n' \
                   "⚠️ **Routine smoke-test failed** for the merge of this PR (\`$short\`) — $reason." \
                   "This looks **transient** (the cloud run hits live Last.fm / web search / Resend), not a validation regression, so no revert was opened. Re-run the test routine; if it keeps failing, treat it as a real break." > body.md
+                gh pr comment "$pr" --repo "$REPO" --body-file body.md
+                gh pr edit "$pr" --repo "$REPO" --add-label routine-test-failed --add-assignee "$OWNER"
+                ;;
+
+              config-fail)
+                echo "PR #$pr: CONFIG-FAIL — allowlist"
+                printf '%s\n\n%s\n' \
+                  "⚙️ **Routine smoke-test could not send** for the merge of this PR (\`$short\`) — $reason." \
+                  "This is an **environment config** issue, not a transient blip or a code regression: \`api.resend.com\` isn't reachable from the run environment (the egress proxy refused it, or it didn't resolve). Add it to the routine environment's Network access allowlist (Custom + \"Also include default list of common package managers\"), then re-run the test routine. **No revert was opened** — re-running won't help until the allowlist is fixed." > body.md
                 gh pr comment "$pr" --repo "$REPO" --body-file body.md
                 gh pr edit "$pr" --repo "$REPO" --add-label routine-test-failed --add-assignee "$OWNER"
                 ;;

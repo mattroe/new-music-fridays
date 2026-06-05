@@ -13,6 +13,12 @@
 //   hard-fail     — validation_passed is false: a real regression in the merged
 //                   change broke the render/security boundary. Comment + label +
 //                   open a revert PR (main goes back to known-good).
+//   config-fail   — the send couldn't reach api.resend.com (proxy 403 or DNS
+//                   failure) because it isn't on the routine's Network access
+//                   allowlist (send_error === "host-not-allowlisted"). An
+//                   ENVIRONMENT config error, not a code bug and not transient —
+//                   re-running won't help until the allowlist is fixed. Comment +
+//                   label + assign, NO revert (issue #66).
 //   transient-fail— anything else not a pass (send error, zero in-window picks,
 //                   a body didn't render): plausibly a live-integration blip on a
 //                   flaky run, NOT necessarily a code bug. Comment + label + assign,
@@ -61,6 +67,17 @@ export function classify(result) {
   }
   // Default method: resend.
   if (result.sent !== true) {
+    // A send that couldn't reach api.resend.com because it isn't allowlisted
+    // (proxy 403 or DNS failure) is a persistent ENVIRONMENT config error, not a
+    // flaky-run blip — call it out distinctly so the reconciler says "fix the
+    // allowlist", not "re-run" (#66).
+    if (result.send_error === "host-not-allowlisted") {
+      return {
+        verdict: "config-fail",
+        reason:
+          "api.resend.com is not reachable from the run environment — add it to the routine environment's Network access allowlist (environment config, not a transient blip or a code regression)",
+      };
+    }
     return { verdict: "transient-fail", reason: "send did not succeed (sent !== true)" };
   }
   if (typeof result.resend_message_id !== "string" || result.resend_message_id.length === 0) {
