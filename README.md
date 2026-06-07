@@ -39,7 +39,7 @@ Forward-looking work lives in the repo's [open issues](https://github.com/mattro
 - `config/blocklist.yaml` — artists/tracks to exclude from taste analysis and the digest (the shared-account / kids'-repeat-play problem); empty by default
 - `templates/email.html` and `templates/email.txt` — email scaffolds with `{{placeholders}}`
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
-- `scripts/musicbrainz.mjs` — resolves kept candidates against the MusicBrainz API to verify they exist and read each release-group's first-release-date, and optionally enrich them with the authoritative label and distilled personnel credits (zero-dependency; fail-soft; one hardcoded host)
+- `scripts/musicbrainz.mjs` — resolves kept candidates against the MusicBrainz API to verify they exist and read each release-group's first-release-date, and optionally enrich them with the authoritative label and distilled personnel credits; also enumerates releases by artists you already listen to, powering the coverage-gap diagnostic (zero-dependency; fail-soft; one hardcoded host)
 - `scripts/run-state.sh` — emits run-state values (date, run mode, timestamps, duration) for `SKILL.md`
 - `scripts/write-delivery.sh` — materializes `config/delivery.yaml` from `NMF_*` env vars at run start
 - `scripts/history.sh` — reads recent run records back and appends one per production run to the private state repo's `history.jsonl` (best-effort; production-only; see [Durable run history](docs/setup.md#durable-run-history))

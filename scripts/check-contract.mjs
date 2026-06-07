@@ -263,7 +263,7 @@ if (musicbrainz !== null) {
 const mbConfig = slurp("config/musicbrainz.yaml");
 check(mbConfig !== null, "config/musicbrainz.yaml is missing");
 if (mbConfig !== null) {
-  for (const key of ["enabled:", "min_score:", "enrich_labels:", "enrich_credits:"]) {
+  for (const key of ["enabled:", "min_score:", "enrich_labels:", "enrich_credits:", "coverage_probe:"]) {
     check(mbConfig.includes(key), `config/musicbrainz.yaml is missing the "${key}" key SKILL.md reads`);
   }
 }
