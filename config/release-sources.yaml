@@ -23,8 +23,9 @@ tier1:
     url: https://www.npr.org/sections/music/
     type: editorial-list
   - name: Bandcamp Daily Essential Releases
-    url: https://daily.bandcamp.com/
+    url: https://daily.bandcamp.com/essential-releases
     type: editorial-list
+    search_scope: "site:daily.bandcamp.com/essential-releases"   # the cross-genre column landing, not the whole homepage
   - name: Pitchfork
     url: https://pitchfork.com/
     type: editorial-blog
@@ -102,3 +103,34 @@ tier2:
     url: https://www.clashmusic.com/
     type: genre-specialist
     genres: [indie, electronic, hip-hop, pop]
+
+  # Bandcamp Daily's monthly genre best-of columns. Distinct from the tier-1
+  # cross-genre Essential Releases above: each is a single-genre curated list of
+  # new releases, so they're genre-routed like the rest of tier-2. URLs are the
+  # stable franchise landings (daily.bandcamp.com/best-<genre>), which front the
+  # latest month's edition. type is editorial-list (Bandcamp Daily isn't a
+  # genre-specialist publication — only these individual columns are scoped).
+  - name: Bandcamp Daily Best Country & Folk
+    url: https://daily.bandcamp.com/best-country
+    type: editorial-list
+    genres: [folk, americana, country, roots]   # the column itself covers folk/bluegrass/roots/Americana
+  - name: Bandcamp Daily Best Jazz
+    url: https://daily.bandcamp.com/best-jazz
+    type: editorial-list
+    genres: [jazz, spiritual-jazz]
+  - name: Bandcamp Daily Best Ambient
+    url: https://daily.bandcamp.com/best-ambient
+    type: editorial-list
+    genres: [ambient, experimental, drone]
+  - name: Bandcamp Daily Best Electronic
+    url: https://daily.bandcamp.com/best-electronic
+    type: editorial-list
+    genres: [electronic, dance, techno, house]
+  - name: Bandcamp Daily Best Experimental
+    url: https://daily.bandcamp.com/best-experimental
+    type: editorial-list
+    genres: [experimental, avant-garde, drone]
+  - name: Bandcamp Daily Best Hip-Hop
+    url: https://daily.bandcamp.com/best-hip-hop
+    type: editorial-list
+    genres: [hip-hop, rap]
