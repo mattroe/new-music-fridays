@@ -10,10 +10,10 @@ A weekly "New Music Friday" digest based on your Last.fm listening history. Runs
 Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The prompt:
 
 1. Pulls your Last.fm listening profile (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20)
-2. Searches the web in two passes — discovery across the tier-1 and genre-routed tier-2 sources in `config/release-sources.yaml`, then an endorsement check against `config/review-sources.yaml` — for releases in the past 7 days
+2. Searches the web in two passes — discovery across the tier-1 and genre-routed tier-2 sources in `config/release-sources.yaml`, then an endorsement check against `config/review-sources.yaml` (endorsements weight ranking but are never shown in the email) — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Verifies kept candidates against the open [MusicBrainz](https://musicbrainz.org) database (`config/musicbrainz.yaml`) — confirming they exist and reading each release-group's first-release-date to confirm genuinely-new releases and demote reissues, and (optionally) enriching each with its authoritative label and producer/engineer credits that overlap your taste (a signal, not a filter; needs `musicbrainz.org` on the allowlist, and no-ops harmlessly until it's added)
-5. Composes a digest — Top 5 picks, Section A (up to 10 known-artist releases), Section B (up to 5 discovery picks), and Worth a Second Look — with the three sections mutually exclusive so no pick repeats, plus endorsement citations where picks earned them
+5. Composes a digest — Top 5 picks, Section A (up to 10 known-artist releases), Section B (up to 5 discovery picks), and Worth a Second Look — with the three sections mutually exclusive so no pick repeats; ranking is by taste-fit (endorsements weight it but are never shown)
 6. Delivers the digest — by default emails it via Resend's REST API; set `method: none` in `config/delivery.yaml` to skip the send and rely on the downloadable file published to your state repo instead (see [Other delivery options](docs/delivery.md)). Either way it writes the rendered email + run metadata to `runs/<today>/` — ephemeral on the routine VM, so the email (or published digest) and the run's session transcript are the durable record
 7. Appends a distilled, redacted record of the run (kept/skipped candidates and the final picks — never raw listening data) to an append-only `history.jsonl` in a **separate private state repo**, so picks survive the discarded VM and can inform later weeks (de-duplicating Worth a Second Look, and an implicit "did I actually play it?" lookback that steers curation toward the past picks you played). Production runs only; see [Durable run history](docs/setup.md#durable-run-history)
 
@@ -34,7 +34,7 @@ Forward-looking work lives in the repo's [open issues](https://github.com/mattro
 - `config/delivery.yaml.example` — template; copy to `config/delivery.yaml` and fill in
 - `config/lastfm.yaml` — Last.fm query periods, limits, similar-artist fan-out
 - `config/release-sources.yaml` — discovery sweep (tier-1 always; tier-2 genre-routed)
-- `config/review-sources.yaml` — endorsement signals + citation allowlist for the email
+- `config/review-sources.yaml` — endorsement signals + citation allowlist (ranking signal; not shown in the email)
 - `config/musicbrainz.yaml` — MusicBrainz verification switch (`enabled`) + match-score floor (`min_score`) + Phase 2 enrichment switches (`enrich_labels`, `enrich_credits`)
 - `templates/email.html` and `templates/email.txt` — email scaffolds with `{{placeholders}}`
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
