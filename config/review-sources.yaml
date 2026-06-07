@@ -1,7 +1,9 @@
 # Endorsement signals — used to (1) WEIGHT the ranking of kept candidates and
-# (2) gate the "Worth a Second Look" step. Endorsements are a ranking signal
-# only — they are NEVER rendered in the email (no scores/citations are shown);
-# pre-send validation asserts the rendered bodies contain none.
+# (2) optionally BOOST a "Worth a Second Look" pick (that step gates on taste-
+# fit, not acclaim, so an endorsement here helps but is never required).
+# Endorsements are a ranking signal only — they are NEVER rendered in the email
+# (no scores/citations are shown); pre-send validation asserts the rendered
+# bodies contain none.
 #
 # Per entry:
 #   source           — the publication.
