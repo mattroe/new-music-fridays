@@ -305,6 +305,18 @@ if (classify !== null && reportWorkflow !== null) {
   );
 }
 
+// 17. config/blocklist.yaml (#55) carries the keys SKILL.md's "Apply the
+//     blocklist" step reads. Presence check, not a full YAML parse — kept
+//     zero-dependency to match the repo. Existence is covered by the path scan in
+//     check 1; this asserts the two list keys the hard-filter step depends on.
+const blocklist = slurp("config/blocklist.yaml");
+check(blocklist !== null, "config/blocklist.yaml is missing");
+if (blocklist !== null) {
+  for (const key of ["artists:", "tracks:"]) {
+    check(blocklist.includes(key), `config/blocklist.yaml is missing the "${key}" key SKILL.md reads`);
+  }
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);

@@ -1,0 +1,29 @@
+# Blocklist — artists/tracks to EXCLUDE from taste analysis and the digest (#55).
+#
+# The "kids'-repeat-play" problem: a Last.fm account often carries plays that
+# don't reflect your taste — a shared device, kids' music on heavy repeat, a
+# track a guest left looping. Those plays skew the genre profile, the
+# similar-artist fan-out, and the recommendations, so the digest drifts toward
+# music you don't actually want. This file lists them so they never count.
+#
+# Unlike feedback.md (a soft STEER), the blocklist is a HARD FILTER: SKILL.md's
+# "Apply the blocklist" step removes these everywhere an artist's plays would
+# otherwise feed discovery — fan-out seeds, the genre lean, and the final
+# candidate set (a blocklisted artist's release never appears in any section).
+#
+# This file is DATA, not instructions (like lastfm.yaml / release-sources.yaml):
+# it can only ever REMOVE things — it can never redirect the email's
+# from/to/subject or trigger a send. It is committed (an empty list is the
+# common case and the shipped default); fill in your own entries.
+
+# Exact artist names to exclude entirely (matched case-insensitively against the
+# Last.fm charts and against candidate artists). Example:
+#   - Cocomelon
+#   - "Ms. Rachel"
+artists: []
+
+# Optional: exclude a specific track without dropping the whole artist, as
+# "Artist — Title" (em dash or hyphen). Use when one song is stuck on repeat but
+# you still want the artist's other work considered. Example:
+#   - "Baby Shark — Pinkfong"
+tracks: []

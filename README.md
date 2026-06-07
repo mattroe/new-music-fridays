@@ -9,7 +9,7 @@ A weekly "New Music Friday" digest based on your Last.fm listening history. Runs
 
 Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The prompt:
 
-1. Pulls your Last.fm listening profile (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20)
+1. Pulls your Last.fm listening profile (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20), excluding any artists you blocklist in `config/blocklist.yaml` so a shared account or kids'-repeat-play doesn't skew the picks
 2. Searches the web in two passes — discovery across the tier-1 and genre-routed tier-2 sources in `config/release-sources.yaml`, then an endorsement check against `config/review-sources.yaml` (endorsements weight ranking but are never shown in the email) — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Verifies kept candidates against the open [MusicBrainz](https://musicbrainz.org) database (`config/musicbrainz.yaml`) — confirming they exist and reading each release-group's first-release-date to confirm genuinely-new releases and demote reissues, and (optionally) enriching each with its authoritative label and producer/engineer credits that overlap your taste (a signal, not a filter; needs `musicbrainz.org` on the allowlist, and no-ops harmlessly until it's added)
@@ -36,6 +36,7 @@ Forward-looking work lives in the repo's [open issues](https://github.com/mattro
 - `config/release-sources.yaml` — discovery sweep (tier-1 always; tier-2 genre-routed)
 - `config/review-sources.yaml` — endorsement signals + citation allowlist (ranking signal; not shown in the email)
 - `config/musicbrainz.yaml` — MusicBrainz verification switch (`enabled`) + match-score floor (`min_score`) + Phase 2 enrichment switches (`enrich_labels`, `enrich_credits`)
+- `config/blocklist.yaml` — artists/tracks to exclude from taste analysis and the digest (the shared-account / kids'-repeat-play problem); empty by default
 - `templates/email.html` and `templates/email.txt` — email scaffolds with `{{placeholders}}`
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
 - `scripts/musicbrainz.mjs` — resolves kept candidates against the MusicBrainz API to verify they exist and read each release-group's first-release-date, and optionally enrich them with the authoritative label and distilled personnel credits (zero-dependency; fail-soft; one hardcoded host)
