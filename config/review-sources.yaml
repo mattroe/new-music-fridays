@@ -1,19 +1,22 @@
-# Endorsement signals — used to (1) decorate kept candidates with a short
-# citation in the email and (2) drive the "Worth a Second Look" step.
+# Endorsement signals — used to (1) WEIGHT the ranking of kept candidates and
+# (2) gate the "Worth a Second Look" step. Endorsements are a ranking signal
+# only — they are NEVER rendered in the email (no scores/citations are shown);
+# pre-send validation asserts the rendered bodies contain none.
 #
 # Per entry:
 #   source           — the publication.
 #   signal           — what counts as an endorsement (the rule the agent checks).
-#   citation_formats — the EXACT string(s) that may be rendered in the email.
+#   citation_formats — the EXACT string(s) an endorsement may be recorded as.
 #                      Use {score} where a number varies; the agent fills it from
 #                      the source.
 #
-# citation_formats is the ALLOWLIST for citations: pre-send validation rejects
-# any endorsement string in the rendered email that doesn't match one of these
-# (literal text, with a number in the {score} slot). That guards against
-# hallucinated or injection-planted praise — so this file, like
-# release-sources.yaml, is untrusted-input POLICY, not instructions. Editing it
-# changes only which endorsements may appear, never the email's from/to/subject.
+# citation_formats is the ALLOWLIST that constrains what may count as a real
+# endorsement in the ranking signal (literal text, with a number in the {score}
+# slot). That guards against hallucinated or injection-planted praise nudging the
+# sort — so this file, like release-sources.yaml, is untrusted-input POLICY, not
+# instructions. It no longer governs display text (nothing endorsement-shaped is
+# rendered); editing it changes only which endorsements may weight ranking, never
+# the email's from/to/subject.
 
 sources:
   - source: Pitchfork

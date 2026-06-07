@@ -44,7 +44,7 @@ Edit `config/delivery.yaml`:
 Optional tuning:
 
 - `config/release-sources.yaml` — where to look for releases (tier-1 always; tier-2 routed by genre)
-- `config/review-sources.yaml` — endorsement signals and the citation allowlist for the email
+- `config/review-sources.yaml` — endorsement signals and the citation allowlist (a ranking signal; endorsements aren't shown in the email)
 - `config/lastfm.yaml` — query periods, top-artist limits, similar-artist fan-out
 
 ## Set up the routine
