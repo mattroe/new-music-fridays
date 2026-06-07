@@ -36,6 +36,10 @@ tier1:
   - name: Brooklyn Vegan
     url: https://www.brooklynvegan.com/
     type: editorial-blog
+  - name: Qobuz Magazine
+    url: https://www.qobuz.com/us-en/magazine
+    type: editorial-blog
+    search_scope: "site:qobuz.com/us-en/magazine"
   - name: Apple Music New Music Daily
     url: https://music.apple.com/us/curator/new-music-daily/
     type: platform-curation
