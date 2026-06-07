@@ -38,7 +38,7 @@ Read all run-state inputs by running this exact command once from the repo root:
 
 Parse its `key=value` output. Do NOT improvise inline shell (`echo`, `date`, `$(...)`) to derive these values — command substitution trips the Bash permission gate, which stalls an unattended run. The output provides:
 
-- `today` — today's date in `YYYY-MM-DD`; call this `<today>`.
+- `today` — today's date in `YYYY-MM-DD`; call this `<today>`. Computed in the routine's configured timezone (`NMF_TZ`, default `America/Los_Angeles`), **not** UTC — so a Friday-evening fire is dated Friday rather than rolling to Saturday on the VM's UTC clock.
 - `last_friday` — the most recent Friday on or before today (equals `today` when today is Friday); call this `<last_friday>`.
 - `started_at` and `started_epoch` — the run start as an ISO 8601 UTC timestamp and as epoch seconds. Keep both; the finalize step needs them.
 - `NMF_TEST` — the run-mode environment variable (empty when unset).
