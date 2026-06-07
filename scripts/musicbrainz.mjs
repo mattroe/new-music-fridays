@@ -37,7 +37,9 @@
 //     request, so the first one aborts the whole fan-out (~0.5s, not ~Ns of
 //     paced 403s) and everything comes back unresolved.
 //
-// Usage:
+// Usage (two modes):
+//
+//   VERIFY (default) — resolve known candidate titles:
 //   node scripts/musicbrainz.mjs <candidates.json> [--min-score <n>]
 //                                [--enrich-labels] [--enrich-credits]
 //     <candidates.json>  JSON array of { "artist": "...", "title": "..." }
@@ -45,14 +47,39 @@
 //     --enrich-labels    +1 paced lookup per resolved candidate for the label
 //     --enrich-credits   +1 paced lookup per resolved candidate for the credits
 //
-// Output: a JSON array on stdout, one object per input candidate (input order):
-//   { artist, title, resolved, mbid, first_release_date, primary_type,
-//     labels, credits }
-//   mbid/first_release_date/primary_type are null when resolved is false.
-//   labels/credits are null when that enrichment wasn't requested (or the
-//   candidate didn't resolve), [] when it was requested but MusicBrainz returned
-//   nothing, and a populated array otherwise. (null = "didn't look", [] = "looked,
-//   found none" — the distinction is what the #61 coverage probe counts.)
+//   Output: a JSON array on stdout, one object per input candidate (input order):
+//     { artist, title, resolved, mbid, first_release_date, primary_type,
+//       labels, credits }
+//     mbid/first_release_date/primary_type are null when resolved is false.
+//     labels/credits are null when that enrichment wasn't requested (or the
+//     candidate didn't resolve), [] when it was requested but MusicBrainz returned
+//     nothing, and a populated array otherwise. (null = "didn't look", [] =
+//     "looked, found none" — what the #61 coverage probe counts.)
+//
+//   ENUMERATE-BY-ARTIST (#71 item 3 / #61 groundwork) — given artists I already
+//   listen to, find what each RELEASED in a window, editor-neutral. This is the
+//   taste-graph-anchored coverage source: it can only fill gaps for artists I
+//   already care about, never add noise. SKILL.md uses it diagnostically first
+//   (the coverage-gap probe) to measure how many in-window known-artist releases
+//   the editorial/web sweep missed.
+//   node scripts/musicbrainz.mjs --enumerate-by-artist <artists.json>
+//                                --window-start <YYYY-MM-DD> --window-end <YYYY-MM-DD>
+//                                [--min-score <n>]
+//     <artists.json>     JSON array of artist names (strings), or objects with a
+//                        string `name`/`artist` field.
+//     --window-start     exclusive lower bound; --window-end inclusive upper bound
+//                        (releases with start < first-release-date <= end).
+//
+//   Output: a JSON array on stdout, one object per input artist (input order):
+//     { artist, artist_mbid, resolved, releases: [ { title, mbid,
+//       first_release_date, primary_type } ] }
+//     resolved/artist_mbid reflect the artist match; `releases` holds only the
+//     artist's in-window release-groups (full YYYY-MM-DD dates only — partial
+//     dates can't be confirmed in-window). [] means resolved-but-nothing-new.
+//
+// Both modes are fail-soft (network/MB error → that row unresolved, exit 0) and
+// 403-fail-fast (proxy host-not-allowlisted → first call aborts the fan-out).
+// Distill-only in both: never any MusicBrainz free-text.
 // Exit codes: 0 always for lookup outcomes (fail-soft); 2 for bad usage/inputs.
 
 import { readFile } from "node:fs/promises";
@@ -68,6 +95,10 @@ const NO_SLEEP = process.env.NMF_MB_NO_SLEEP === "1"; // tests skip the real wai
 // record; the digest only ever renders one label and a few overlapping credits.
 const MAX_LABELS = 4;
 const MAX_CREDITS = 12;
+// In-window release-groups per artist for enumerate mode. In practice this is 0
+// or 1 — the cap just guards against a pathological artist with many same-window
+// entries (deluxe/region variants) bloating the diagnostic.
+const MAX_ENUM_RELEASES = 25;
 
 function fail(code, message) {
   console.error(`musicbrainz: ${message}`);
@@ -84,6 +115,12 @@ function parseArgs(argv) {
       args.enrichLabels = true;
     } else if (tok === "--enrich-credits") {
       args.enrichCredits = true;
+    } else if (tok === "--enumerate-by-artist") {
+      args.enumerateByArtist = argv[++i];
+    } else if (tok === "--window-start") {
+      args.windowStart = argv[++i];
+    } else if (tok === "--window-end") {
+      args.windowEnd = argv[++i];
     } else if (tok.startsWith("--")) {
       fail(2, `unknown flag "${tok}"`);
     } else {
@@ -231,6 +268,91 @@ function escapeLucene(s) {
   return String(s).replace(/(["\\])/g, "\\$1");
 }
 
+// True iff a MusicBrainz first-release-date is a full YYYY-MM-DD that falls in
+// (start, end]. Partial dates ("2026", "2026-06") can't be confirmed inside a
+// 7-day window, so they're excluded — the enumerate probe wants high-confidence
+// in-window releases, not maybes. Lexicographic compare is correct for ISO dates.
+function inWindow(date, start, end) {
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  return date > start && date <= end;
+}
+
+// ENUMERATE-BY-ARTIST: resolve one artist name to its MBID, then browse its
+// release-groups and keep only the ones first released inside the window.
+// Two paced calls (artist search + release-group browse), distill-only, with the
+// same proxyBlocked fail-fast signal as resolveOne.
+async function enumerateOne(name, opts) {
+  const row = { artist: name, artist_mbid: null, resolved: false, releases: [] };
+
+  const search = await mbGet(
+    `${MB_BASE}/artist?query=${encodeURIComponent(`artist:"${escapeLucene(name)}"`)}&fmt=json&limit=3`,
+  );
+  if (search.proxyBlocked) return { row, proxyBlocked: true };
+  if (search.error) return { row, proxyBlocked: false };
+
+  const artists = Array.isArray(search.json?.artists) ? search.json.artists : [];
+  const hit = artists.find((a) => Number(a?.score) >= opts.minScore);
+  if (!hit || !hit.id) return { row, proxyBlocked: false };
+
+  row.resolved = true;
+  row.artist_mbid = hit.id;
+
+  const browse = await mbGet(`${MB_BASE}/release-group?artist=${hit.id}&fmt=json&limit=100`);
+  if (browse.proxyBlocked) return { row, proxyBlocked: true };
+  if (browse.error) return { row, proxyBlocked: false }; // resolved artist, releases unread — fail-soft
+
+  const groups = Array.isArray(browse.json?.["release-groups"]) ? browse.json["release-groups"] : [];
+  for (const g of groups) {
+    const date = g?.["first-release-date"] ?? null;
+    if (!inWindow(date, opts.windowStart, opts.windowEnd)) continue;
+    row.releases.push({
+      title: typeof g?.title === "string" ? g.title : null,
+      mbid: typeof g?.id === "string" ? g.id : null,
+      first_release_date: date,
+      primary_type: g?.["primary-type"] ?? null,
+    });
+    if (row.releases.length >= MAX_ENUM_RELEASES) break;
+  }
+  return { row, proxyBlocked: false };
+}
+
+async function enumerateMain(args, minScore) {
+  const windowStart = args.windowStart;
+  const windowEnd = args.windowEnd;
+  const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  if (!isDate(windowStart) || !isDate(windowEnd)) {
+    fail(2, "--enumerate-by-artist requires --window-start and --window-end as YYYY-MM-DD");
+  }
+
+  let names;
+  try {
+    names = JSON.parse(await readFile(args.enumerateByArtist, "utf8"));
+  } catch (err) {
+    fail(2, `cannot read artists file: ${err.message}`);
+  }
+  if (!Array.isArray(names)) fail(2, "artists file must be a JSON array");
+
+  const opts = { minScore, windowStart, windowEnd };
+  const results = [];
+  let blocked = false;
+  for (let i = 0; i < names.length; i++) {
+    const raw = names[i];
+    const name = typeof raw === "string" ? raw : raw && (raw.name ?? raw.artist);
+    if (typeof name !== "string" || !name) {
+      fail(2, `artist ${i} must be a string (or an object with a string name/artist)`);
+    }
+    if (blocked) {
+      results.push({ artist: name, artist_mbid: null, resolved: false, releases: [] });
+      continue;
+    }
+    const { row, proxyBlocked } = await enumerateOne(name, opts);
+    results.push(row);
+    if (proxyBlocked) blocked = true; // fail-fast: skip the rest
+  }
+
+  process.stdout.write(JSON.stringify(results));
+}
+
 // An unresolved row in input shape — used for candidates skipped after a 403.
 function unresolvedRow(c) {
   return {
@@ -247,11 +369,18 @@ function unresolvedRow(c) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const inputPath = args._[0];
-  if (!inputPath) fail(2, "missing <candidates.json> argument");
 
   const minScore = args.minScore === undefined ? 90 : Number(args.minScore);
   if (!Number.isFinite(minScore)) fail(2, `--min-score must be a number, got "${args.minScore}"`);
+
+  // ENUMERATE-BY-ARTIST mode dispatches before the verify path (#71 item 3).
+  if (args.enumerateByArtist !== undefined) {
+    await enumerateMain(args, minScore);
+    return;
+  }
+
+  const inputPath = args._[0];
+  if (!inputPath) fail(2, "missing <candidates.json> argument");
 
   const opts = {
     minScore,
