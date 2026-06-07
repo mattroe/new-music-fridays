@@ -26,6 +26,16 @@
 
 set -euo pipefail
 
+# Anchor every date below to the user's local timezone, not the VM's. The cloud
+# routine's VM runs on UTC, so a Friday-evening "Run now" past ~17:00 Pacific has
+# already rolled over to Saturday in UTC — `date +%Y-%m-%d` then stamps the digest
+# (and its window, run dir, and history record) a day late (Fri 06-05 shown as
+# 06-06). Forcing TZ here makes `today`/`weekday`/`last_friday` compute in the
+# user's calendar day, so a Friday run is dated Friday regardless of fire time.
+# Committed default is the single-user owner's zone; a forker overrides via the
+# NMF_TZ routine env var (same env-driven pattern as NMF_TEST), no file edit.
+export TZ="${NMF_TZ:-America/Los_Angeles}"
+
 cmd="${1:-}"
 
 case "$cmd" in
