@@ -67,6 +67,25 @@ Optional tuning:
 
 4. **Test it.** Use **Run now** to fire the routine — note this sends a real, unprefixed production email (with `method: none` nothing is sent; the run publishes the digest to your state repo instead). Open the run as a session from the routines list to see what it did and its token usage in the transcript. (`runs/<date>/` artifacts don't persist in the cloud, and `meta.json.tokens` is `null` — that's expected; read usage from the transcript.) To check the pipeline without a production send, do a marked test run first — see [Testing a fork](testing.md#testing-a-fork).
 
+## Optional: Spotify as the taste source
+
+By default the digest personalizes from Last.fm. If your listening lives in Spotify instead, swap the taste backend (issue #50) — discovery and delivery are unchanged, and you skip the Last.fm connector (step 1 above) entirely. Honest tradeoffs first: Spotify exposes no play counts (the implicit play-back signal runs in a weaker positive-only form), no similar-artist/recommendations feed (discovery leans harder on the web research), and it sees only Spotify plays. For a Spotify-primary listener that's complete; if you scrobble from multiple apps, Last.fm stays the richer signal.
+
+1. **Create a Spotify app** at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard). Development mode is all you need — no review process; add your own Spotify account under the app's **User Management** (a dev-mode app allows ~25 manually-added users, plenty for self-hosting). Give it a redirect URI you control; `http://127.0.0.1:8888/callback` works fine — nothing needs to be listening there, you only copy a code off the redirected URL.
+2. **Mint a refresh token** (one time, locally). With `SPOTIFY_CLIENT_ID` exported in your shell:
+
+       node scripts/spotify.mjs auth-url --redirect-uri http://127.0.0.1:8888/callback
+
+   Open the printed URL in a browser, approve the read-only scopes, and copy the `code` parameter from the URL you're redirected to (the page itself failing to load is fine). Then, with `SPOTIFY_CLIENT_SECRET` also exported (the code is single-use and expires in minutes, so do this right away):
+
+       node scripts/spotify.mjs exchange --code <code> --redirect-uri http://127.0.0.1:8888/callback
+
+   It prints `SPOTIFY_REFRESH_TOKEN=...`. Spotify refresh tokens are long-lived (they survive until you revoke the app), so this is genuinely one-time. Treat it like a password — it goes in the routine's environment, never in git.
+3. **Configure the routine:** set `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REFRESH_TOKEN` as routine environment variables (alongside `RESEND_API_KEY`), and add **both** `accounts.spotify.com` and `api.spotify.com` to the same Custom Network-access allowlist as `api.resend.com` — the token exchange and the data reads are different hosts, and missing either one makes the run abort with `spotify_error=host-not-allowlisted`.
+4. **Flip the selector:** set `source: spotify` in `config/taste.yaml` and commit. Tunables (top-item limits, library caps, test-mode trims) live in `config/spotify.yaml`; the defaults are sensible.
+
+If the taste backend fails on a run — a revoked token, a missing allowlist host — the run aborts loudly with a `spotify_error=` marker in the transcript rather than sending a generic, unpersonalized digest. `auth-failed` means re-mint the token (step 2); `host-not-allowlisted` means fix the allowlist (step 3).
+
 ## Durable run history
 
 **What the state repo is.** A single **private repo, separate from this shared code repo**, that holds everything per-user and durable a run produces — the things that can't live on the routine's throwaway VM *or* in the public code repo. It carries three things, and setting it up once unlocks all of them:

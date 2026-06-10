@@ -317,6 +317,44 @@ if (blocklist !== null) {
   }
 }
 
+// 18. The pluggable taste seam (#50). config/taste.yaml carries the `source`
+//     selector SKILL.md branches on; config/spotify.yaml carries the keys the
+//     spotify branch reads; and scripts/spotify.mjs keeps the same containment
+//     contract as send-email.mjs/musicbrainz.mjs — zero-dependency, only its
+//     two hardcoded Spotify hosts — plus the loud-failure `spotify_error=`
+//     marker SKILL.md's abort path and meta notes key off.
+const taste = slurp("config/taste.yaml");
+check(taste !== null, "config/taste.yaml is missing");
+if (taste !== null) {
+  check(taste.includes("source:"), 'config/taste.yaml is missing the "source:" key SKILL.md reads');
+}
+check(skill.includes("<taste_source>"), "SKILL.md no longer branches on <taste_source> (#50)");
+const spotifyConfig = slurp("config/spotify.yaml");
+check(spotifyConfig !== null, "config/spotify.yaml is missing");
+if (spotifyConfig !== null) {
+  for (const key of ["top_items:", "recently_played:", "saved_library:", "followed_artists:", "test_mode:"]) {
+    check(spotifyConfig.includes(key), `config/spotify.yaml is missing the "${key}" key SKILL.md reads`);
+  }
+}
+const spotify = slurp("scripts/spotify.mjs");
+check(spotify !== null, "scripts/spotify.mjs is missing");
+if (spotify !== null) {
+  const imports = [...spotify.matchAll(/^\s*import\b[^'"]*['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+  for (const spec of imports) {
+    check(
+      spec.startsWith("node:"),
+      `scripts/spotify.mjs imports "${spec}" — only node: built-ins are allowed`,
+    );
+  }
+  for (const host of ["https://accounts.spotify.com", "https://api.spotify.com"]) {
+    check(spotify.includes(host), `scripts/spotify.mjs must keep the hardcoded host ${host}`);
+  }
+  check(
+    spotify.includes("spotify_error="),
+    "scripts/spotify.mjs dropped its spotify_error= failure marker (SKILL.md aborts on it)",
+  );
+}
+
 if (failures.length > 0) {
   console.error(`contract check FAILED — ${failures.length} problem(s):`);
   for (const f of failures) console.error(`  - ${f}`);

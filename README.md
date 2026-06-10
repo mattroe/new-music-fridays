@@ -3,13 +3,13 @@
 [![CI](https://github.com/mattroe/new-music-fridays/actions/workflows/ci.yml/badge.svg)](https://github.com/mattroe/new-music-fridays/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
-A weekly "New Music Friday" digest based on your Last.fm listening history. Runs as an Anthropic-hosted Claude Code routine and emails a curated digest of new releases to you each Friday.
+A weekly "New Music Friday" digest based on your Last.fm listening history (or your Spotify library — the taste source is pluggable via `config/taste.yaml`). Runs as an Anthropic-hosted Claude Code routine and emails a curated digest of new releases to you each Friday.
 
 ## How it works
 
 Claude executes `SKILL.md` every Friday via an Anthropic-hosted routine. The prompt:
 
-1. Pulls your Last.fm listening profile (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20), excluding any artists you blocklist in `config/blocklist.yaml` so a shared account or kids'-repeat-play doesn't skew the picks
+1. Pulls your listening profile — from Last.fm by default (3-month, 12-month, overall top artists; recommendations; similar-artist fan-out for top 20), or from Spotify (top items, saved library, recently-played, follows) when `config/taste.yaml` selects it (see [Spotify as the taste source](docs/setup.md#optional-spotify-as-the-taste-source)) — excluding any artists you blocklist in `config/blocklist.yaml` so a shared account or kids'-repeat-play doesn't skew the picks
 2. Searches the web in two passes — discovery across the tier-1 and genre-routed tier-2 sources in `config/release-sources.yaml`, then an endorsement check against `config/review-sources.yaml` (endorsements weight ranking but are never shown in the email) — for releases in the past 7 days
 3. Cross-references candidates against the listening profile
 4. Verifies kept candidates against the open [MusicBrainz](https://musicbrainz.org) database (`config/musicbrainz.yaml`) — confirming they exist and reading each release-group's first-release-date to confirm genuinely-new releases and demote reissues, and (optionally) enriching each with its authoritative label and producer/engineer credits that overlap your taste (a signal, not a filter; needs `musicbrainz.org` on the allowlist, and no-ops harmlessly until it's added)
@@ -32,13 +32,16 @@ Forward-looking work lives in the repo's [open issues](https://github.com/mattro
 - `SKILL.md` — orchestrator prompt; reads the configs and templates below
 - `CLAUDE.md` — developer context for editing the repo (distinct from `SKILL.md`)
 - `config/delivery.yaml.example` — template; copy to `config/delivery.yaml` and fill in
+- `config/taste.yaml` — which taste backend personalizes the digest: `lastfm` (default) or `spotify`
 - `config/lastfm.yaml` — Last.fm query periods, limits, similar-artist fan-out
+- `config/spotify.yaml` — Spotify taste-backend limits (top items, saved library, follows), used when `config/taste.yaml` selects `spotify`
 - `config/release-sources.yaml` — discovery sweep (tier-1 always; tier-2 genre-routed)
 - `config/review-sources.yaml` — endorsement signals + citation allowlist (ranking signal; not shown in the email)
 - `config/musicbrainz.yaml` — MusicBrainz verification switch (`enabled`) + match-score floor (`min_score`) + Phase 2 enrichment switches (`enrich_labels`, `enrich_credits`)
 - `config/blocklist.yaml` — artists/tracks to exclude from taste analysis and the digest (the shared-account / kids'-repeat-play problem); empty by default
 - `templates/email.html` and `templates/email.txt` — email scaffolds with `{{placeholders}}`
 - `scripts/send-email.mjs` — sends the rendered email via Resend's REST API
+- `scripts/spotify.mjs` — the Spotify taste backend: exchanges the refresh token and reads top items / saved library / recently-played / follows into one distilled listening profile, plus one-time `auth-url`/`exchange` setup helpers (zero-dependency; two hardcoded hosts; loud-fail)
 - `scripts/musicbrainz.mjs` — resolves kept candidates against the MusicBrainz API to verify they exist and read each release-group's first-release-date, and optionally enrich them with the authoritative label and distilled personnel credits; also enumerates releases by artists you already listen to, powering the coverage-gap diagnostic (zero-dependency; fail-soft; one hardcoded host)
 - `scripts/run-state.sh` — emits run-state values (date, run mode, timestamps, duration) for `SKILL.md`
 - `scripts/write-delivery.sh` — materializes `config/delivery.yaml` from `NMF_*` env vars at run start
