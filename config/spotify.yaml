@@ -1,0 +1,50 @@
+# Spotify taste-backend parameters (issue #50). Read by SKILL.md's "Data
+# gathering" only when config/taste.yaml::source is `spotify`, and passed as
+# flags to `scripts/spotify.mjs profile`. Committed directly like lastfm.yaml —
+# no secret lives here (credentials are the SPOTIFY_* routine env vars).
+#
+# The roles mirror config/lastfm.yaml: recency drives the genre lean,
+# the wide nets drive recognition/exclusion. SKILL.md maps them explicitly:
+#   recency          <- top_artists short_term + recently_played
+#   medium context   <- top_artists medium_term
+#   recognition net  <- top_artists long_term + followed + saved-library artists
+#   core taste       <- saved tracks/albums + medium/long-term top tracks
+#
+# Spotify caps every one of these reads at 50 items per page; the script
+# paginates the library/follow reads up to the caps below.
+
+top_items:
+  # Per-time-range limit for /me/top/artists and /me/top/tracks. Spotify's page
+  # cap is 50; all three windows (short_term ~4wk, medium_term ~6mo,
+  # long_term ~1yr) are always read — the windows are the architecture
+  # (recency lean vs. recognition net), not a tunable.
+  limit: 50
+
+recently_played:
+  # /me/player/recently-played — the recency / current-obsession signal.
+  # Spotify exposes at most the last 50 plays (no deeper history).
+  limit: 50
+
+saved_library:
+  # /me/tracks and /me/albums — the explicit "Liked"/saved core-taste axis
+  # (the loved/heavy analogue). Paginated 50/page up to these caps.
+  tracks_limit: 200
+  albums_limit: 200
+
+followed_artists:
+  # /me/following?type=artist — intent + recognition. Paginated up to the cap.
+  limit: 200
+
+# Test-mode trim (NMF_TEST=1), the analogue of lastfm.yaml::test_mode: same
+# code path, smaller reads, so the smoke test exercises the backend without
+# the full library paginate.
+test_mode:
+  top_items:
+    limit: 25
+  recently_played:
+    limit: 25
+  saved_library:
+    tracks_limit: 50
+    albums_limit: 50
+  followed_artists:
+    limit: 50

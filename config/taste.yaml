@@ -1,0 +1,18 @@
+# Which backend answers "who is this listener and what do they like" — the
+# pluggable taste seam from issues #49/#50/#52. Swapping it changes ONLY the
+# personalization signal SKILL.md's "Data gathering" reads; discovery (web
+# research), delivery, and the from/to/subject security boundary are identical
+# either way.
+#
+#   lastfm   (default) — the Last.fm connector. The richest signal: scrobble
+#            counts aggregate ALL listening apps and power the #25 implicit
+#            play-back probe. Also the fallback when this file or key is
+#            missing or carries an unrecognized value.
+#   spotify  — scripts/spotify.mjs against the Spotify Web API (issue #50),
+#            for a listener whose taste lives in Spotify. Needs the
+#            SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET / SPOTIFY_REFRESH_TOKEN
+#            routine env vars and both accounts.spotify.com + api.spotify.com
+#            on the Network-access allowlist; parameters live in
+#            config/spotify.yaml. The Last.fm connector is not needed in this
+#            mode. See docs/setup.md, "Optional: Spotify as the taste source".
+source: lastfm
