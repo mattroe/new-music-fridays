@@ -48,6 +48,7 @@ async function runSend({
   if (fake.body) env.FAKE_FETCH_BODY = fake.body;
   if (fake.errorMessage) env.FAKE_FETCH_ERROR_MESSAGE = fake.errorMessage;
   if (fake.errorCode) env.FAKE_FETCH_ERROR_CODE = fake.errorCode;
+  if (fake.failTimes) env.FAKE_FETCH_FAIL_TIMES = String(fake.failTimes);
 
   let code = 0;
   let stdout = "";
@@ -118,9 +119,11 @@ test("network failure exits 1", async () => {
   assert.match(stderr, /request to Resend failed/);
 });
 
-test("a DNS resolution failure (host not reachable / not allowlisted) is flagged host-not-allowlisted", async () => {
+test("a persistent ENOTFOUND (survives the retry) is flagged host-not-allowlisted", async () => {
   // The real cloud failure in #66: the not-allowlisted host doesn't resolve,
   // so fetch throws ENOTFOUND rather than the proxy answering with a 403.
+  // network-error mode throws on *every* call, so this ENOTFOUND survives the
+  // one automatic retry — a genuinely unreachable host, correctly flagged.
   const { code, stdout, stderr } = await runSend({
     fake: {
       mode: "network-error",
@@ -131,6 +134,40 @@ test("a DNS resolution failure (host not reachable / not allowlisted) is flagged
   assert.equal(code, 1);
   assert.match(stdout, /send_error=host-not-allowlisted/);
   assert.match(stderr, /could not be reached/);
+});
+
+test("a transient send failure is retried once and then succeeds, not flagged (issue #77)", async () => {
+  // The smoking gun in #77: a single transient DNS blip on a known-good
+  // allowlist (succeed/fail/succeed across runs). The first attempt throws
+  // ENOTFOUND, the retry resolves and sends — so the run is a clean send, NOT a
+  // false host-not-allowlisted config-fail.
+  const { code, stdout } = await runSend({
+    fake: {
+      failTimes: 1,
+      errorMessage: "getaddrinfo ENOTFOUND api.resend.com",
+      errorCode: "ENOTFOUND",
+    },
+  });
+  assert.equal(code, 0);
+  assert.match(stdout, /resend_message_id=test-message-id/);
+  assert.doesNotMatch(stdout, /send_error=host-not-allowlisted/);
+});
+
+test("EAI_AGAIN is NOT flagged host-not-allowlisted — POSIX transient (issue #78)", async () => {
+  // EAI_AGAIN is POSIX-defined as temporary ("the name server returned a
+  // temporary failure indication. Try again later."), so it must be treated
+  // like a timeout/reset, not like ENOTFOUND. network-error mode throws it on
+  // every call (so it survives the retry too), and it still must not be flagged.
+  const { code, stdout, stderr } = await runSend({
+    fake: {
+      mode: "network-error",
+      errorMessage: "getaddrinfo EAI_AGAIN api.resend.com",
+      errorCode: "EAI_AGAIN",
+    },
+  });
+  assert.equal(code, 1);
+  assert.doesNotMatch(stdout, /send_error=host-not-allowlisted/);
+  assert.match(stderr, /request to Resend failed/);
 });
 
 test("a generic network blip stays a plain (transient) failure, not an allowlist block", async () => {
