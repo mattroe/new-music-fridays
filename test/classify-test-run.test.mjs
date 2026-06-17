@@ -54,6 +54,17 @@ test("a host-not-allowlisted send failure is config-fail, not transient (#66)", 
   assert.match(v.reason, /allowlist/);
 });
 
+test("a send failure WITHOUT the marker is transient-fail, not config-fail (#77/#78)", () => {
+  // send-email.mjs emits host-not-allowlisted only for a *persistent* unreachable
+  // host (an ENOTFOUND that survives its retry). A transient DNS blip — EAI_AGAIN
+  // (POSIX "try again"), or an ENOTFOUND that cleared on retry — leaves no marker,
+  // so a still-failed send here must route to "re-run", never "fix the allowlist".
+  assert.equal(classify({ ...passing, sent: false, send_error: null }).verdict, "transient-fail");
+  const r = { ...passing, sent: false };
+  delete r.send_error;
+  assert.equal(classify(r).verdict, "transient-fail");
+});
+
 test("zero in-window picks is transient-fail (aborted before compose)", () => {
   assert.equal(classify({ ...passing, in_window_picks: 0 }).verdict, "transient-fail");
 });

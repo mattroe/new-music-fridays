@@ -24,7 +24,10 @@
 // it also prints `send_error=host-not-allowlisted` to stdout so the caller
 // (SKILL.md) can record *which* kind of failure it was. That condition has two
 // faces depending on how egress is enforced: the proxy answers with a 403, OR
-// the host simply doesn't resolve (a DNS failure / ENOTFOUND). Both are flagged.
+// the host doesn't resolve (a *permanent* ENOTFOUND). Both are flagged — but a
+// thrown DNS failure is flagged only after one automatic retry, so a transient
+// DNS blip (a fleeting ENOTFOUND, or EAI_AGAIN — POSIX "try again later")
+// self-heals into a normal send instead of a false config error (issues #77, #78).
 // Exit codes: 0 sent, 1 send failed (network/Resend error), 2 bad usage/inputs.
 
 import { readFile } from "node:fs/promises";
@@ -48,17 +51,33 @@ function isProxyAllowlistBlock(status, body) {
   return /allowlist|not allowed|host not/i.test(trimmed);
 }
 
-// The non-403 face of "not allowlisted": a DNS-resolution failure for
-// api.resend.com — a known-good public host — means this environment can't
-// resolve it, i.e. it isn't reachable through the egress allowlist. Node's
-// fetch wraps the cause, so check both the error and its `cause` (code or
-// message). Connection-level errors (timeout / reset) are deliberately NOT
-// included — those are plausibly a transient blip, not a config error.
-function isHostUnresolvable(err) {
+// A DNS-resolution failure of any kind: the name didn't resolve — ENOTFOUND
+// ("no such host") or EAI_AGAIN ("temporary failure, try again"). This is the
+// *retry* trigger (see the send loop), not the flag trigger: resolution fails
+// before any request bytes leave, so retrying one of these can never double-send
+// the email — unlike a connection reset / timeout mid-request, which is why those
+// are deliberately excluded here. Node's fetch wraps the cause, so check both the
+// error and its `cause` (code or message).
+function isDnsResolutionFailure(err) {
   const codes = ["ENOTFOUND", "EAI_AGAIN"];
   if (codes.includes(err?.code) || codes.includes(err?.cause?.code)) return true;
   const text = `${err?.message ?? ""} ${err?.cause?.message ?? ""}`;
   return /\bENOTFOUND\b|\bEAI_AGAIN\b|getaddrinfo/i.test(text);
+}
+
+// The non-403 face of "not allowlisted": a *permanent* DNS failure for
+// api.resend.com — a known-good public host — means this environment genuinely
+// can't reach it through the egress allowlist. Only ENOTFOUND ("no such host")
+// counts: EAI_AGAIN is POSIX-defined as a *temporary* resolver failure ("try
+// again later"), so it's a transient blip, not a config error (issue #78) — and
+// the real #66 cloud failure was ENOTFOUND. We match ENOTFOUND specifically
+// (not a bare "getaddrinfo", which an EAI_AGAIN message also contains) so the
+// transient case is never misflagged. Applied only after the retry has also
+// failed (the send loop), so a flagged failure is one that survived a retry.
+function isHostUnresolvable(err) {
+  if (err?.code === "ENOTFOUND" || err?.cause?.code === "ENOTFOUND") return true;
+  const text = `${err?.message ?? ""} ${err?.cause?.message ?? ""}`;
+  return /\bENOTFOUND\b/i.test(text);
 }
 
 function parseArgs(argv) {
@@ -77,6 +96,35 @@ function parseArgs(argv) {
 function fail(code, message) {
   console.error(`send-email: ${message}`);
   process.exit(code);
+}
+
+function postToResend(apiKey, payload) {
+  return fetch(RESEND_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// Terminal handler for a thrown (network-layer) send error, after any retry. A
+// permanent unreachable host (ENOTFOUND surviving the retry) is the one config
+// error we flag with the greppable marker — same as the 403 path — so the
+// reconciler says "fix the allowlist", not "re-run" (#66). Everything else
+// (EAI_AGAIN, timeout, reset) is left unflagged: a plausibly transient blip the
+// reconciler should re-run, not a config error. Never returns (always exits).
+function failFromSendThrow(err) {
+  if (isHostUnresolvable(err)) {
+    console.log("send_error=host-not-allowlisted");
+    fail(
+      1,
+      `api.resend.com could not be reached (${err.cause?.message ?? err.message}) — it isn't reachable from ` +
+        `this environment. Add it to the routine environment's Network access allowlist; this is a config error, not transient.`,
+    );
+  }
+  fail(1, `request to Resend failed: ${err.message}`);
 }
 
 async function main() {
@@ -99,36 +147,33 @@ async function main() {
     fail(2, "rendered html/text body is empty");
   }
 
+  const payload = {
+    from: args.from,
+    to: args.to,
+    subject: args.subject,
+    html,
+    text,
+  };
+
   let res;
   try {
-    res = await fetch(RESEND_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: args.from,
-        to: args.to,
-        subject: args.subject,
-        html,
-        text,
-      }),
-    });
+    res = await postToResend(apiKey, payload);
   } catch (err) {
-    if (isHostUnresolvable(err)) {
-      // Same environment config error as the 403 path, just surfaced as a DNS
-      // failure instead of a proxy answer (this is how the real cloud run in
-      // issue #66 failed). Same marker, so the reconciler still says "fix the
-      // allowlist", not "looks transient, re-run".
-      console.log("send_error=host-not-allowlisted");
-      fail(
-        1,
-        `api.resend.com could not be reached (${err.cause?.message ?? err.message}) — it isn't reachable from ` +
-          `this environment. Add it to the routine environment's Network access allowlist; this is a config error, not transient.`,
-      );
+    // Retry exactly once, but only on a DNS-resolution failure. Name resolution
+    // fails before any request bytes are sent, so a retry here can never
+    // double-send the email — and a flaky resolver is the surface behind the
+    // false "host-not-allowlisted" config-fail reports on a known-good allowlist
+    // (issue #77). A transient blip (EAI_AGAIN's POSIX "try again", or an
+    // ENOTFOUND that clears) succeeds on the second attempt; a genuinely
+    // unreachable host throws ENOTFOUND again and is flagged. A non-DNS throw
+    // (timeout / reset) is NOT retried — it could double-send, and it's already
+    // handled as a transient failure downstream.
+    if (!isDnsResolutionFailure(err)) failFromSendThrow(err);
+    try {
+      res = await postToResend(apiKey, payload);
+    } catch (retryErr) {
+      failFromSendThrow(retryErr);
     }
-    fail(1, `request to Resend failed: ${err.message}`);
   }
 
   const bodyText = await res.text();
