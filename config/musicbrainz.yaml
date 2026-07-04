@@ -34,17 +34,18 @@ min_score: 90
 # ("MB wins when resolved") — a reliability gain on the rendered label field.
 enrich_labels: true
 
-# Coverage-gap probe (issue #71 item 3, DIAGNOSTIC). After research + verification,
-# SKILL.md enumerates what your recency-chart artists actually released this window
-# (via `musicbrainz.mjs --enumerate-by-artist`) and counts how many of those the
-# editorial/web sweep MISSED — quantifying whether the candidate universe is
-# editor-gated. It is diagnostic ONLY: the missed releases are logged (candidates.md
-# + the history record's `coverage_gap`), never added to the digest this run.
-# Turning them into a live coverage source is the next, evidence-gated step.
-# Reuses the same musicbrainz.org host, so the master `enabled` switch gates it too;
-# set `coverage_probe.enabled: false` to skip just the probe.
+# Coverage-gap sweep (issue #71 item 3, LIVE discovery source). After research +
+# verification, SKILL.md enumerates what your recency-chart artists actually released
+# this window (via `musicbrainz.mjs --enumerate-by-artist`) and finds the ones the
+# editorial/web sweep MISSED. Those missed releases are now PROMOTED into the candidate
+# pool as live candidates (Section A / Top 5 eligible, ranked on taste-fit like any
+# other candidate — they never auto-win), not just logged. The three counts
+# (enumerated / in_pool / missed) still persist to the history record's `coverage_gap`
+# to keep quantifying the editor-gating gap week over week. Reuses the same
+# musicbrainz.org host, so the master `enabled` switch gates it too; set
+# `coverage_probe.enabled: false` to skip the whole sweep.
 #   - max_artists: cap on recency-chart artists to enumerate (2 paced MB calls
-#     each), keeping the probe's added wall-clock modest next to the listening fan-out.
+#     each), keeping the sweep's added wall-clock modest next to the listening fan-out.
 #   - test_mode.max_artists: a smaller cap so the smoke test exercises the path
 #     with fewer enumerate calls.
 coverage_probe:
